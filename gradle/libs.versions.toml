@@ -1,0 +1,58 @@
+[versions]
+java = "11"
+
+minSdk = "21"
+targetSdk = "34"
+compileSdk = "34"
+
+agp = "7.4.2"
+kotlin = "1.8.21"
+maven-publish = "0.27.0"
+
+timber = "5.0.1"
+
+core-ktx = "1.7.0"
+app-compat = "1.6.0"
+
+material = "1.9.0"
+constraint-layout = "2.1.4"
+
+kotlinx-coroutines = "1.6.4"
+
+lifecycle = "2.5.1"
+
+core-performance = "1.0.0-alpha02"
+
+
+[libraries]
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
+
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "app-compat" }
+
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+constraint-layout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraint-layout" }
+
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
+
+androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycle" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
+
+androidx-core-performance = { group = "androidx.core", name = "core-performance", version.ref = "core-performance" }
+
+
+[bundles]
+core = ["androidx-core-ktx", "androidx-appcompat"]
+
+ui = ["material", "constraint-layout"]
+
+lifecycle = ["androidx-lifecycle-process", "androidx-lifecycle-runtime-ktx"]
+
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+
+jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+
+maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
