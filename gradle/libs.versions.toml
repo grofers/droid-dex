@@ -1,27 +1,27 @@
 [versions]
-java = "11"
+java = "17"
 
 minSdk = "21"
 targetSdk = "34"
 compileSdk = "34"
 
-agp = "7.4.2"
-kotlin = "1.8.21"
+agp = "8.0.2"
+kotlin = "1.9.21"
 maven-publish = "0.27.0"
 
 timber = "5.0.1"
 
 core-ktx = "1.7.0"
-app-compat = "1.6.0"
+app-compat = "1.6.1"
 
 material = "1.9.0"
 constraint-layout = "2.1.4"
 
-kotlinx-coroutines = "1.6.4"
+kotlinx-coroutines = "1.7.2"
 
 lifecycle = "2.5.1"
 
-core-performance = "1.0.0-alpha02"
+core-performance = "1.0.0"
 
 
 [libraries]

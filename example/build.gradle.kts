@@ -9,7 +9,10 @@ plugins {
 android {
 	namespace = "com.blinkit.droiddexexample"
 
-	buildFeatures { viewBinding = true }
+	buildFeatures {
+		viewBinding = true
+		buildConfig = true
+	}
 
 	compileSdk = libs.versions.compileSdk.get().toInt()
 
