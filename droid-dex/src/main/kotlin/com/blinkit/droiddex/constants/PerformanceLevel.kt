@@ -10,6 +10,6 @@ enum class PerformanceLevel(val level: Int) {
 	companion object {
 
 		internal fun getPerformanceLevel(level: Int? = null): PerformanceLevel =
-			PerformanceLevel.values().find { it.level == level } ?: UNKNOWN
+			entries.find { it.level == level } ?: UNKNOWN
 	}
 }

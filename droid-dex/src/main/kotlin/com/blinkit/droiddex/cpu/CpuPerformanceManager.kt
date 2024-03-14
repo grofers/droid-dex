@@ -3,7 +3,7 @@ package com.blinkit.droiddex.cpu
 import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.core.performance.DevicePerformance
+import androidx.core.performance.DefaultDevicePerformance
 import com.blinkit.droiddex.constants.PerformanceClass
 import com.blinkit.droiddex.constants.PerformanceLevel
 import com.blinkit.droiddex.cpu.utils.CpuInfoManager
@@ -21,6 +21,8 @@ internal class CpuPerformanceManager(
 ): PerformanceManager(isInDebugMode) {
 
 	private val cpuInfoManager by lazy { CpuInfoManager(logger) }
+
+	private val devicePerformance by lazy { DefaultDevicePerformance() }
 
 	private val lowSocModels = intArrayOf(
 		-1775228513,  // EXYNOS 850
@@ -79,7 +81,7 @@ internal class CpuPerformanceManager(
 	private fun getBuildSocModel() = Build.SOC_MODEL.uppercase(Locale.getDefault()).hashCode()
 
 	private fun getMediaPerformanceClass() =
-		DevicePerformance.create(applicationContext).mediaPerformanceClass.also { logDebug("MEDIA PERFORMANCE CLASS: $it") }
+		devicePerformance.mediaPerformanceClass.also { logDebug("MEDIA PERFORMANCE CLASS: $it") }
 
 	private fun getAndroidVersion() = Build.VERSION.SDK_INT.also { logDebug("ANDROID VERSION: $it") }
 
