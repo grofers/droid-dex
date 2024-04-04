@@ -6,8 +6,13 @@ import com.blinkit.droiddex.constants.PerformanceClass
 import com.blinkit.droiddex.constants.PerformanceLevel
 import com.blinkit.droiddex.utils.Logger
 import com.blinkit.droiddex.utils.runAsyncPeriodically
+import kotlin.concurrent.Volatile
 
 internal abstract class PerformanceManager(private val isInDebugMode: Boolean) {
+
+	@Volatile
+	var performanceLevel = PerformanceLevel.UNKNOWN
+		private set
 
 	private val _performanceLevelLd = MutableLiveData(PerformanceLevel.UNKNOWN)
 	val performanceLevelLd: LiveData<PerformanceLevel>
@@ -20,7 +25,10 @@ internal abstract class PerformanceManager(private val isInDebugMode: Boolean) {
 			try {
 				measurePerformanceLevel().also {
 					val hasPerformanceLevelChanged = performanceLevelLd.value != it
-					if (hasPerformanceLevelChanged) _performanceLevelLd.postValue(it)
+					if (hasPerformanceLevelChanged) {
+						performanceLevel = it
+						_performanceLevelLd.postValue(it)
+					}
 					logger.logPerformanceLevelChange(it, hasPerformanceLevelChanged)
 				}
 			} catch (e: Exception) {
