@@ -6,9 +6,11 @@ import com.blinkit.droiddex.constants.PerformanceClass
 import com.blinkit.droiddex.constants.PerformanceLevel
 import com.blinkit.droiddex.utils.Logger
 import com.blinkit.droiddex.utils.runAsyncPeriodically
+import kotlin.concurrent.Volatile
 
 internal abstract class PerformanceManager(private val isInDebugMode: Boolean) {
 
+	@Volatile
 	var performanceLevel = PerformanceLevel.UNKNOWN
 		private set
 
