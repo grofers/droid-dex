@@ -20,7 +20,7 @@ internal class PerformanceManagerFactory(private val applicationContext: Context
 	}
 
 	fun getPerformanceLevel(@PerformanceClass performanceClass: Int): PerformanceLevel =
-		getOrPut(performanceClass).performanceLevelLd.value ?: PerformanceLevel.UNKNOWN
+		getOrPut(performanceClass).performanceLevel
 
 	fun getPerformanceLevelLd(@PerformanceClass performanceClass: Int): LiveData<PerformanceLevel> =
 		getOrPut(performanceClass).performanceLevelLd
