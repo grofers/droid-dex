@@ -38,9 +38,6 @@ internal class CpuPerformanceManager(
 		-1853602818 // SDM439
 	)
 
-	private val excellentMediaPerformanceClasses =
-		intArrayOf(Build.VERSION_CODES.S, Build.VERSION_CODES.S_V2, Build.VERSION_CODES.TIRAMISU)
-
 	override fun getPerformanceClass() = PerformanceClass.CPU
 
 	override fun getDelayInSecs() = DELAY_IN_SECS
@@ -66,7 +63,7 @@ internal class CpuPerformanceManager(
 
 		val approxHeapLimitInMB = getApproxHeapLimitInMB(logger)
 
-		return if (mediaPerformanceClass in excellentMediaPerformanceClasses || ramInGB >= 12) {
+		return if (mediaPerformanceClass >= Build.VERSION_CODES.TIRAMISU || ramInGB >= 12) {
 			PerformanceLevel.EXCELLENT
 		} else if (androidVersion < 21 || coresCount <= 2 || approxHeapLimitInMB <= 100 || coresCount <= 4 && maxCpuFreq <= 1250 || coresCount <= 4 && maxCpuFreq <= 1600 && approxHeapLimitInMB <= 128 && androidVersion <= 21 || coresCount <= 4 && maxCpuFreq <= 1300 && approxHeapLimitInMB <= 128 && androidVersion <= 24 || ramInGB <= 2) {
 			PerformanceLevel.LOW
