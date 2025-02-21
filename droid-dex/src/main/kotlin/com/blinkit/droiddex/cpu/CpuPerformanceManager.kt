@@ -64,7 +64,7 @@ internal class CpuPerformanceManager(
 
 		val mediaPerformanceClass = getMediaPerformanceClass()
 
-		val approxHeapLimitInMB = getApproxHeapLimitInMB(applicationContext, logger)
+		val approxHeapLimitInMB = getApproxHeapLimitInMB(logger)
 
 		return if (mediaPerformanceClass in excellentMediaPerformanceClasses || ramInGB >= 12) {
 			PerformanceLevel.EXCELLENT

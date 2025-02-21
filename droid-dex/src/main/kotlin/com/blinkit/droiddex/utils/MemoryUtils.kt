@@ -17,17 +17,11 @@ internal fun getMemoryInfo(applicationContext: Context, logger: Logger): Activit
  * But, it can be changed in rooted devices or devices with developer options switched on. Max Memory cannot be changed.
  * So to get a better limit, we check minimum of memory class and max memory.
  */
-internal fun getApproxHeapLimitInMB(applicationContext: Context, logger: Logger): Float {
-	val memoryClassInMB = getActivityManager(applicationContext, logger)?.memoryClass?.toFloat() ?: Float.MAX_VALUE
-	val maxMemoryInMB = convertBytesToMB(Runtime.getRuntime().maxMemory())
+internal fun getApproxHeapLimitInMB(logger: Logger): Float =
+	convertBytesToMB(Runtime.getRuntime().maxMemory()).also { logger.logDebug("APPROXIMATE HEAP LIMIT: $it MB") }
 
-	logger.logDebug("MEMORY CLASS: $memoryClassInMB MB, MAX MEMORY: $maxMemoryInMB MB")
-
-	return min(memoryClassInMB, maxMemoryInMB).also { logger.logDebug("APPROXIMATE HEAP LIMIT: $it MB") }
-}
-
-internal fun getApproxHeapRemainingInMB(applicationContext: Context, logger: Logger): Float {
-	val heapLimitInMB = getApproxHeapLimitInMB(applicationContext, logger)
+internal fun getApproxHeapRemainingInMB(logger: Logger): Float {
+	val heapLimitInMB = getApproxHeapLimitInMB(logger)
 	val heapUsedInMB = convertBytesToMB(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())
 
 	logger.logDebug("APPROXIMATE HEAP USED: $heapUsedInMB MB")
