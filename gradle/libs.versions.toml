@@ -12,7 +12,7 @@ maven-publish = "0.27.0"
 timber = "5.0.1"
 
 core-ktx = "1.7.0"
-app-compat = "1.6.1"
+app-compat = "1.7.0"
 
 material = "1.9.0"
 constraint-layout = "2.1.4"
