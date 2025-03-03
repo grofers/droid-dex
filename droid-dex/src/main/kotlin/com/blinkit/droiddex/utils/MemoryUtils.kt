@@ -11,11 +11,7 @@ internal fun getMemoryInfo(applicationContext: Context, logger: Logger): Activit
  * <a href="https://stackoverflow.com/a/9428660">Detailed Explanation</a>
  *
  * Max Memory gives the actual limit for the heap
- * Memory Class gives the limit we should be respecting
  *
- * In most cases for non-rooted devices, memory class is a better representation of the limit that should be made.
- * But, it can be changed in rooted devices or devices with developer options switched on. Max Memory cannot be changed.
- * So to get a better limit, we check minimum of memory class and max memory.
  */
 internal fun getApproxHeapLimitInMB(logger: Logger): Float =
 	convertBytesToMB(Runtime.getRuntime().maxMemory()).also { logger.logDebug("APPROXIMATE HEAP LIMIT: $it MB") }
