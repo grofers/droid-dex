@@ -3,7 +3,7 @@ package com.blinkit.droiddex.cpu
 import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.core.performance.DefaultDevicePerformance
+import androidx.core.performance.play.services.PlayServicesDevicePerformance
 import com.blinkit.droiddex.constants.PerformanceClass
 import com.blinkit.droiddex.constants.PerformanceLevel
 import com.blinkit.droiddex.cpu.utils.CpuInfoManager
@@ -22,7 +22,7 @@ internal class CpuPerformanceManager(
 
 	private val cpuInfoManager by lazy { CpuInfoManager(logger) }
 
-	private val devicePerformance by lazy { DefaultDevicePerformance() }
+	private val devicePerformance by lazy { PlayServicesDevicePerformance(applicationContext) }
 
 	private val lowSocModels = intArrayOf(
 		-1775228513,  // EXYNOS 850
