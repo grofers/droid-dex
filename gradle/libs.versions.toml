@@ -1,25 +1,25 @@
 [versions]
 java = "17"
 
-minSdk = "21"
-targetSdk = "34"
-compileSdk = "34"
+minSdk = "24"
+targetSdk = "35"
+compileSdk = "35"
 
-agp = "8.0.2"
-kotlin = "1.9.21"
+agp = "8.7.2"
+kotlin = "2.0.21"
 maven-publish = "0.27.0"
 
 timber = "5.0.1"
 
-core-ktx = "1.7.0"
-app-compat = "1.6.1"
+core-ktx = "1.15.0"
+app-compat = "1.7.0"
 
 material = "1.9.0"
-constraint-layout = "2.1.4"
+constraint-layout = "2.2.0"
 
-kotlinx-coroutines = "1.7.2"
+kotlinx-coroutines = "1.9.0"
 
-lifecycle = "2.5.1"
+lifecycle = "2.8.7"
 
 core-performance = "1.0.0"
 
@@ -39,6 +39,7 @@ androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-p
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 
 androidx-core-performance = { group = "androidx.core", name = "core-performance", version.ref = "core-performance" }
+androidx-core-performance-play-services = { group = "androidx.core", name = "core-performance-play-services", version.ref = "core-performance" }
 
 
 [bundles]
@@ -48,6 +49,7 @@ ui = ["material", "constraint-layout"]
 
 lifecycle = ["androidx-lifecycle-process", "androidx-lifecycle-runtime-ktx"]
 
+performance = ["androidx-core-performance", "androidx-core-performance-play-services"]
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

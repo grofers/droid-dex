@@ -3,7 +3,7 @@ package com.blinkit.droiddex.cpu
 import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.core.performance.DefaultDevicePerformance
+import androidx.core.performance.play.services.PlayServicesDevicePerformance
 import com.blinkit.droiddex.constants.PerformanceClass
 import com.blinkit.droiddex.constants.PerformanceLevel
 import com.blinkit.droiddex.cpu.utils.CpuInfoManager
@@ -22,7 +22,7 @@ internal class CpuPerformanceManager(
 
 	private val cpuInfoManager by lazy { CpuInfoManager(logger) }
 
-	private val devicePerformance by lazy { DefaultDevicePerformance() }
+	private val devicePerformance by lazy { PlayServicesDevicePerformance(applicationContext) }
 
 	private val lowSocModels = intArrayOf(
 		-1775228513,  // EXYNOS 850
@@ -37,9 +37,6 @@ internal class CpuPerformanceManager(
 		2067361998,  // MSM8917
 		-1853602818 // SDM439
 	)
-
-	private val excellentMediaPerformanceClasses =
-		intArrayOf(Build.VERSION_CODES.S, Build.VERSION_CODES.S_V2, Build.VERSION_CODES.TIRAMISU)
 
 	override fun getPerformanceClass() = PerformanceClass.CPU
 
@@ -64,9 +61,9 @@ internal class CpuPerformanceManager(
 
 		val mediaPerformanceClass = getMediaPerformanceClass()
 
-		val approxHeapLimitInMB = getApproxHeapLimitInMB(applicationContext, logger)
+		val approxHeapLimitInMB = getApproxHeapLimitInMB(logger)
 
-		return if (mediaPerformanceClass in excellentMediaPerformanceClasses || ramInGB >= 12) {
+		return if (mediaPerformanceClass >= Build.VERSION_CODES.TIRAMISU || ramInGB >= 12) {
 			PerformanceLevel.EXCELLENT
 		} else if (androidVersion < 21 || coresCount <= 2 || approxHeapLimitInMB <= 100 || coresCount <= 4 && maxCpuFreq <= 1250 || coresCount <= 4 && maxCpuFreq <= 1600 && approxHeapLimitInMB <= 128 && androidVersion <= 21 || coresCount <= 4 && maxCpuFreq <= 1300 && approxHeapLimitInMB <= 128 && androidVersion <= 24 || ramInGB <= 2) {
 			PerformanceLevel.LOW

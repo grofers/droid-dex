@@ -26,9 +26,9 @@ internal class MemoryPerformanceManager(
 
 		val availableRamInGB = getAvailableRamInGB(applicationContext, logger)
 
-		val approxHeapLimitInMB = getApproxHeapLimitInMB(applicationContext, logger)
+		val approxHeapLimitInMB = getApproxHeapLimitInMB(logger)
 
-		val approxHeapRemainingInMB = getApproxHeapRemainingInMB(applicationContext, logger)
+		val approxHeapRemainingInMB = getApproxHeapRemainingInMB(logger)
 
 		return if (approxHeapRemainingInMB <= 64 || approxHeapLimitInMB < 128) {
 			PerformanceLevel.LOW

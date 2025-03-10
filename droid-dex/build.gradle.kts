@@ -60,5 +60,5 @@ dependencies {
 
 	implementation(libs.bundles.lifecycle)
 
-	implementation(libs.androidx.core.performance)
+	implementation(libs.bundles.performance)
 }
