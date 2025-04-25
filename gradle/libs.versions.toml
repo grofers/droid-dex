@@ -2,24 +2,24 @@
 java = "17"
 
 minSdk = "21"
-targetSdk = "34"
-compileSdk = "34"
+targetSdk = "35"
+compileSdk = "35"
 
-agp = "8.0.2"
-kotlin = "1.9.21"
+agp = "8.7.2"
+kotlin = "2.0.21"
 maven-publish = "0.27.0"
 
 timber = "5.0.1"
 
-core-ktx = "1.7.0"
-app-compat = "1.6.1"
+core-ktx = "1.15.0"
+app-compat = "1.7.0"
 
 material = "1.9.0"
-constraint-layout = "2.1.4"
+constraint-layout = "2.2.0"
 
-kotlinx-coroutines = "1.7.2"
+kotlinx-coroutines = "1.9.0"
 
-lifecycle = "2.5.1"
+lifecycle = "2.8.7"
 
 core-performance = "1.0.0"
 

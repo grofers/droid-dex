@@ -9,3 +9,6 @@ local.properties
 *.iml
 
 *.DS_Store
+
+# Kotlin 2.0
+.kotlin/
