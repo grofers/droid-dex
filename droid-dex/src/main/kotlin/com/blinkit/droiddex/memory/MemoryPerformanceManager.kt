@@ -10,9 +10,7 @@ import com.blinkit.droiddex.utils.getApproxHeapRemainingInMB
 import com.blinkit.droiddex.utils.getAvailableRamInGB
 import com.blinkit.droiddex.utils.getMemoryInfo
 
-internal class MemoryPerformanceManager(
-	private val applicationContext: Context, isInDebugMode: Boolean
-): PerformanceManager(isInDebugMode) {
+internal class MemoryPerformanceManager(private val applicationContext: Context): PerformanceManager() {
 
 	override fun getPerformanceClass() = PerformanceClass.MEMORY
 
@@ -43,8 +41,8 @@ internal class MemoryPerformanceManager(
 
 	companion object: PerformanceManagerProvider {
 
-		override fun create(applicationContext: Context, isInDebugMode: Boolean): PerformanceManager =
-			MemoryPerformanceManager(applicationContext, isInDebugMode)
+		override fun create(applicationContext: Context): PerformanceManager =
+			MemoryPerformanceManager(applicationContext)
 
 		private const val DELAY_IN_SECS = 10F
 	}

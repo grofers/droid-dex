@@ -16,9 +16,7 @@ import java.util.Locale
 /**
  * Inspired By <a href="https://github.com/DrKLO/Telegram/blob/dfd74f809e97d1ecad9672fc7388cb0223a95dfc/TMessagesProj/src/main/java/org/telegram/messenger/SharedConfig.java#L1361">Telegram's CPU Division</a>
  */
-internal class CpuPerformanceManager(
-	private val applicationContext: Context, isInDebugMode: Boolean
-): PerformanceManager(isInDebugMode) {
+internal class CpuPerformanceManager(private val applicationContext: Context): PerformanceManager() {
 
 	private val cpuInfoManager by lazy { CpuInfoManager(logger) }
 
@@ -84,8 +82,7 @@ internal class CpuPerformanceManager(
 
 	companion object: PerformanceManagerProvider {
 
-		override fun create(applicationContext: Context, isInDebugMode: Boolean): PerformanceManager =
-			CpuPerformanceManager(applicationContext, isInDebugMode)
+		override fun create(applicationContext: Context): PerformanceManager = CpuPerformanceManager(applicationContext)
 
 		private const val DELAY_IN_SECS = 60F
 	}

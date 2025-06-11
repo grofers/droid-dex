@@ -19,19 +19,19 @@ import androidx.annotation.Keep
 	AnnotationTarget.TYPE,
 	AnnotationTarget.FUNCTION
 )
-annotation class PerformanceClass {
+public annotation class PerformanceClass {
 
-	companion object {
+	public companion object {
 
-		const val CPU = 0
-		const val MEMORY = 1
-		const val STORAGE = 2
-		const val NETWORK = 3
-		const val BATTERY = 4
+		public const val CPU: Int = 0
+		public const val MEMORY: Int = 1
+		public const val STORAGE: Int = 2
+		public const val NETWORK: Int = 3
+		public const val BATTERY: Int = 4
 
 		internal fun values(): List<Int> = listOf(CPU, MEMORY, STORAGE, NETWORK, BATTERY)
 
-		fun @PerformanceClass Int.name() = when (this) {
+		public fun @PerformanceClass Int.name() = when (this) {
 			CPU -> "CPU"
 			MEMORY -> "MEMORY"
 			STORAGE -> "STORAGE"

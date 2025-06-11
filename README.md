@@ -1,3 +1,4 @@
+<!--suppress HtmlDeprecatedAttribute -->
 <div align="center">
 
 ![Droid Dex](./assets/logo.png)
@@ -55,11 +56,8 @@ into the code, comprehend each line thoroughly, and, ideally, contribute to its 
 Initialize the library in your Application class using the following code snippet:
 
 ```Kotlin
-DroidDex.init(this, BuildConfig.DEBUG)
+DroidDex.init(this) // Parameter: Application Context
 ```
-
-The first parameter requires the `Application Context`, while the second parameter determines whether the user is in
-`Debug Mode`, enabling extensive logging.
 
 1. To get performance level for single/multiple parameters:
 
@@ -94,7 +92,7 @@ The first parameter requires the `Application Context`, while the second paramet
     }
     ```
 
-   Replace `params` with comma separated list of `Performance Classes` to their `Weights`.
+   Replace `params` with a comma separated list of `Performance Classes` to their `Weights`.
 
    Example:
    ```Kotlin
@@ -102,53 +100,37 @@ The first parameter requires the `Application Context`, while the second paramet
    }
    ```
 
+<!--suppress HtmlDeprecatedAttribute -->
 <div align="center">
-   <img src="./assets/example.png" alt="Example App" width="250">
+	<!--suppress CheckImageSize -->
+	<img src="./assets/example.png" alt="Example App" width="250">
 </div>
 
-See [Example Project](https://github.com/grofers/droid-dex/tree/main/example) for Further Usage
+See [Example Project](example) for further usage
 
-## Download
+## Setup
 
 <details open>
-<summary>Kotlin DSL</summary>
+<summary>For versions 3.+</summary>
 
-Add this to your root `settings.gradle.kts`
-
-```Kotlin
-dependencyResolutionManagement {
-	repositories {
-		maven {
-			url = URI("https://maven.pkg.github.com/grofers/*")
-			credentials {
-				username = "Blinkit"
-				password = GITHUB_PERSONAL_ACCESS_TOKEN
-			}
-		}
-	}
-}
-```
-
-And add this dependency to your project level `build.gradle.kts`:
+The latest release is available on [Maven Central](https://central.sonatype.com/artifact/com.eternal.kits/droid-dex).
 
 ```Kotlin
-dependencies {
-	implementation("com.blinkit.kits:droid-dex:x.y.z")
-}
+implementation("com.eternal.kits:droid-dex:<<latest_version>>")
 ```
 
 </details>
 
 <details>
-<summary>Groovy</summary>
+<summary>For versions 2.x and before</summary>
 
-Add this to your root `settings.gradle`
+Add this to your `settings.gradle[.kts]` file
 
-```Groovy
+```Kotlin
 dependencyResolutionManagement {
 	repositories {
 		maven {
-			url "https://maven.pkg.github.com/grofers/*"
+			url = uri("https://maven.pkg.github.com/grofers/*")
 			credentials {
 				username = "Blinkit"
 				password = GITHUB_PERSONAL_ACCESS_TOKEN
@@ -158,30 +140,10 @@ dependencyResolutionManagement {
 }
 ```
 
-And add this dependency to your project level `build.gradle`:
+And add this dependency to your project level `build.gradle[.kts]` file:
 
-```Groovy
-dependencies {
-	implementation "com.blinkit.kits:droid-dex:x.y.z"
-}
+```Kotlin
+implementation("com.blinkit.kits:droid-dex:<<your_version>>")
 ```
 
 </details>
-
-## License
-
-<pre>
-Copyright 2024 Blink Commerce Private Limited (formerly known as Grofers India Private Limited)
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-</pre>

@@ -11,21 +11,20 @@ import com.blinkit.droiddex.utils.Logger
 import com.blinkit.droiddex.utils.getPerformanceLevelLdWithWeights
 import com.blinkit.droiddex.utils.getPerformanceLevelWithWeights
 
-object DroidDex {
+public object DroidDex {
 
 	private lateinit var performanceManagerFactory: PerformanceManagerFactory
 
-	private val logger by lazy { Logger() }
+	private val logger: Logger by lazy { Logger() }
 
-	fun init(applicationContext: Context, isInDebugMode: Boolean = false) {
+	public fun init(applicationContext: Context) {
 		if (::performanceManagerFactory.isInitialized) {
 			logger.logError(IllegalStateException("Droid Dex is already initialized"))
 			return
 		}
-		logger.isInDebugMode = isInDebugMode
 
 		try {
-			performanceManagerFactory = PerformanceManagerFactory(applicationContext, isInDebugMode)
+			performanceManagerFactory = PerformanceManagerFactory(applicationContext)
 		} catch (e: Exception) {
 			logger.logError(e)
 		}
@@ -41,7 +40,7 @@ object DroidDex {
 	 * - Ignore the ones for which the PerformanceLevel is UNKNOWN
 	 * - Take average of all these PerformanceClass
 	 */
-	fun getPerformanceLevel(@PerformanceClass vararg classes: Int): PerformanceLevel =
+	public fun getPerformanceLevel(@PerformanceClass vararg classes: Int): PerformanceLevel =
 		getWeightedPerformanceLevel(*classes.map { Pair(it, 1F) }.toTypedArray())
 
 	/**
@@ -54,7 +53,7 @@ object DroidDex {
 	 * - Ignore the ones for which the PerformanceLevel is UNKNOWN
 	 * - Take average of all these PerformanceClass
 	 */
-	fun getPerformanceLevelLd(@PerformanceClass vararg classes: Int): LiveData<PerformanceLevel> =
+	public fun getPerformanceLevelLd(@PerformanceClass vararg classes: Int): LiveData<PerformanceLevel> =
 		getWeightedPerformanceLevelLd(*classes.map { Pair(it, 1F) }.toTypedArray())
 
 	/**
@@ -67,7 +66,7 @@ object DroidDex {
 	 * - Ignore the ones for which the PerformanceLevel is UNKNOWN
 	 * - Take weighted average of all these PerformanceClass
 	 */
-	fun getWeightedPerformanceLevel(vararg classes: Pair<@PerformanceClass Int, Float>): PerformanceLevel =
+	public fun getWeightedPerformanceLevel(vararg classes: Pair<@PerformanceClass Int, Float>): PerformanceLevel =
 		checkInitialized(*classes.map { it.first }.toIntArray()) ?: getPerformanceLevelWithWeights(classes.map {
 			Pair(performanceManagerFactory.getPerformanceLevel(it.first), it.second)
 		}).also { logger.logPerformanceLevelResult(*classes, performanceLevel = it) }
@@ -82,13 +81,13 @@ object DroidDex {
 	 * - Ignore the ones for which the PerformanceLevel is UNKNOWN
 	 * - Take weighted average of all these PerformanceClass
 	 */
-	fun getWeightedPerformanceLevelLd(vararg classes: Pair<@PerformanceClass Int, Float>): LiveData<PerformanceLevel> =
+	public fun getWeightedPerformanceLevelLd(vararg classes: Pair<@PerformanceClass Int, Float>): LiveData<PerformanceLevel> =
 		checkInitialized(*classes.map { it.first }.toIntArray())?.let { MutableLiveData(it) }
 			?: getPerformanceLevelLdWithWeights(classes.map {
 				Pair(performanceManagerFactory.getPerformanceLevelLd(it.first), it.second)
 			}) { logger.logPerformanceLevelResult(*classes, performanceLevel = it) }
 
-	private fun checkInitialized(@PerformanceClass vararg classes: Int): PerformanceLevel? {
+	private fun checkInitialized(vararg classes: Int): PerformanceLevel? {
 		if (::performanceManagerFactory.isInitialized) return null
 
 		val classesNames = classes.joinToString(", ") { it.name() }

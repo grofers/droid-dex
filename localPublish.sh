@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ./gradlew clean
-./gradlew droid-dex:assembleRelease
+./gradlew droid-dex:assemble
 
 echo -e "\n\nPublishing to LOCAL. BEWARE. Waiting for 2 seconds before continuing\n\n"
 sleep 2
