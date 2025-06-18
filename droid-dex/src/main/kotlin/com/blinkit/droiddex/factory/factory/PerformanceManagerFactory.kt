@@ -11,7 +11,7 @@ import com.blinkit.droiddex.memory.MemoryPerformanceManager
 import com.blinkit.droiddex.network.NetworkPerformanceManager
 import com.blinkit.droiddex.storage.StoragePerformanceManager
 
-internal class PerformanceManagerFactory(private val applicationContext: Context, private val isInDebugMode: Boolean) {
+internal class PerformanceManagerFactory(private val applicationContext: Context) {
 
 	private val performanceManagerMap = mutableMapOf<@PerformanceClass Int, PerformanceManager>()
 
@@ -28,11 +28,11 @@ internal class PerformanceManagerFactory(private val applicationContext: Context
 	private fun getOrPut(@PerformanceClass performanceClass: Int): PerformanceManager =
 		performanceManagerMap.getOrPut(performanceClass) {
 			when (performanceClass) {
-				PerformanceClass.CPU -> CpuPerformanceManager.create(applicationContext, isInDebugMode)
-				PerformanceClass.MEMORY -> MemoryPerformanceManager.create(applicationContext, isInDebugMode)
-				PerformanceClass.STORAGE -> StoragePerformanceManager.create(applicationContext, isInDebugMode)
-				PerformanceClass.NETWORK -> NetworkPerformanceManager.create(applicationContext, isInDebugMode)
-				PerformanceClass.BATTERY -> BatteryPerformanceManager.create(applicationContext, isInDebugMode)
+				PerformanceClass.CPU -> CpuPerformanceManager.create(applicationContext)
+				PerformanceClass.MEMORY -> MemoryPerformanceManager.create(applicationContext)
+				PerformanceClass.STORAGE -> StoragePerformanceManager.create(applicationContext)
+				PerformanceClass.NETWORK -> NetworkPerformanceManager.create(applicationContext)
+				PerformanceClass.BATTERY -> BatteryPerformanceManager.create(applicationContext)
 				else -> throw IllegalArgumentException("NO SUCH PERFORMANCE CLASS EXISTS: $performanceClass")
 			}.apply { init() }
 		}

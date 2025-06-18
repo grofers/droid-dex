@@ -1,5 +1,3 @@
-@file:Suppress("UnstableApiUsage")
-
 plugins {
 	alias(libs.plugins.android.application)
 	alias(libs.plugins.jetbrains.kotlin.android)
@@ -9,29 +7,20 @@ plugins {
 android {
 	namespace = "com.blinkit.droiddexexample"
 
-	buildFeatures {
-		viewBinding = true
-		buildConfig = true
-	}
+	buildFeatures { viewBinding = true }
 
-	compileSdk = libs.versions.compileSdk.get().toInt()
+	compileSdk = libs.versions.sdk.compile.get().toInt()
 
 	defaultConfig {
 		applicationId = "com.blinkit.droiddexexample"
 
-		minSdk = 24
-		targetSdk = libs.versions.targetSdk.get().toInt()
+		minSdk = libs.versions.sdk.min.get().toInt()
 
 		versionCode = 1
 		versionName = "1.0"
 	}
 
-	buildTypes {
-		release {
-			isMinifyEnabled = false
-			proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-		}
-	}
+	buildTypes { release { isMinifyEnabled = false } }
 
 	compileOptions {
 		sourceCompatibility = JavaVersion.toVersion(libs.versions.java.get())

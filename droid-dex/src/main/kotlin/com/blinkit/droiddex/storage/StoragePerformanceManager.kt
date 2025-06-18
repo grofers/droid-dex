@@ -9,7 +9,7 @@ import com.blinkit.droiddex.factory.base.PerformanceManager
 import com.blinkit.droiddex.factory.providers.PerformanceManagerProvider
 import com.blinkit.droiddex.utils.convertBytesToGB
 
-internal class StoragePerformanceManager(isInDebugMode: Boolean): PerformanceManager(isInDebugMode) {
+internal class StoragePerformanceManager: PerformanceManager() {
 
 	override fun getPerformanceClass() = PerformanceClass.STORAGE
 
@@ -39,8 +39,7 @@ internal class StoragePerformanceManager(isInDebugMode: Boolean): PerformanceMan
 
 	companion object: PerformanceManagerProvider {
 
-		override fun create(applicationContext: Context, isInDebugMode: Boolean): PerformanceManager =
-			StoragePerformanceManager(isInDebugMode)
+		override fun create(applicationContext: Context): PerformanceManager = StoragePerformanceManager()
 
 		private const val DELAY_IN_SECS = 600F
 	}

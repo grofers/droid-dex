@@ -2,9 +2,7 @@
 <resources>
 	<color name="background">#F4F6FB</color>
 
-	<color name="progress_background">#D1E0FF</color>
-
-	<color name="low">#EF4F5F</color>
+    <color name="low">#EF4F5F</color>
 	<color name="average">#FAD975</color>
 	<color name="high">#BBD959</color>
 	<color name="excellent">#3AB757</color>

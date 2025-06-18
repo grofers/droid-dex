@@ -8,7 +8,7 @@ import com.blinkit.droiddex.utils.Logger
 import com.blinkit.droiddex.utils.runAsyncPeriodically
 import kotlin.concurrent.Volatile
 
-internal abstract class PerformanceManager(private val isInDebugMode: Boolean) {
+internal abstract class PerformanceManager {
 
 	@Volatile
 	var performanceLevel = PerformanceLevel.UNKNOWN
@@ -18,7 +18,7 @@ internal abstract class PerformanceManager(private val isInDebugMode: Boolean) {
 	val performanceLevelLd: LiveData<PerformanceLevel>
 		get() = _performanceLevelLd
 
-	protected val logger by lazy { Logger(isInDebugMode, getPerformanceClass()) }
+	protected val logger by lazy { Logger(getPerformanceClass()) }
 
 	fun init() {
 		runAsyncPeriodically({

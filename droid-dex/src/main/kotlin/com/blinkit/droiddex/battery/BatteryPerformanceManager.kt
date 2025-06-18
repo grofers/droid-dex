@@ -9,9 +9,7 @@ import com.blinkit.droiddex.constants.PerformanceLevel
 import com.blinkit.droiddex.factory.base.PerformanceManager
 import com.blinkit.droiddex.factory.providers.PerformanceManagerProvider
 
-internal class BatteryPerformanceManager(
-	private val applicationContext: Context, isInDebugMode: Boolean
-): PerformanceManager(isInDebugMode) {
+internal class BatteryPerformanceManager(private val applicationContext: Context): PerformanceManager() {
 
 	override fun getPerformanceClass() = PerformanceClass.BATTERY
 
@@ -42,8 +40,8 @@ internal class BatteryPerformanceManager(
 
 	companion object: PerformanceManagerProvider {
 
-		override fun create(applicationContext: Context, isInDebugMode: Boolean): PerformanceManager =
-			BatteryPerformanceManager(applicationContext, isInDebugMode)
+		override fun create(applicationContext: Context): PerformanceManager =
+			BatteryPerformanceManager(applicationContext)
 
 		private const val DELAY_IN_SECS = 60F
 	}

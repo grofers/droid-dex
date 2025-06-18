@@ -1,6 +1,4 @@
-@file:Suppress("UnstableApiUsage")
-
-import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
+import com.vanniktech.maven.publish.AndroidMultiVariantLibrary
 import java.net.URI
 
 plugins {
@@ -26,20 +24,27 @@ publishing {
 
 
 mavenPublishing {
-	configure(AndroidSingleVariantLibrary("release", sourcesJar = true, publishJavadocJar = true))
+	configure(AndroidMultiVariantLibrary(sourcesJar = true, publishJavadocJar = true))
+}
+
+
+kotlin {
+	explicitApi()
 }
 
 
 android {
 	namespace = "com.blinkit.droiddex"
 
-	compileSdk = libs.versions.compileSdk.get().toInt()
+	compileSdk = libs.versions.sdk.compile.get().toInt()
 
 	defaultConfig {
-		minSdk = libs.versions.minSdk.get().toInt()
+		minSdk = libs.versions.sdk.min.get().toInt()
 
 		consumerProguardFiles("consumer-rules.pro")
 	}
+
+	buildFeatures { buildConfig = true }
 
 	buildTypes { release { isMinifyEnabled = false } }
 
@@ -56,7 +61,7 @@ dependencies {
 
 	implementation(libs.bundles.core)
 
-	implementation(libs.kotlinx.coroutines.android)
+	implementation(libs.coroutines.android)
 
 	implementation(libs.bundles.lifecycle)
 

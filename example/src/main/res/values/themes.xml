@@ -3,6 +3,7 @@
 
 	<style name="BaseDroidDexExampleTheme" parent="Theme.Material3.Light.NoActionBar">
 		<item name="android:statusBarColor">@android:color/white</item>
+		<item name="android:windowLightStatusBar">true</item>
 
 		<item name="fontFamily">@font/poppins</item>
 		<item name="android:fontFamily">@font/poppins</item>

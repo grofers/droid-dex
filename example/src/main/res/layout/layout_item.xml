@@ -49,6 +49,7 @@
 		app:layout_constraintEnd_toEndOf="parent"
 		app:layout_constraintStart_toStartOf="parent"
 		app:layout_constraintTop_toBottomOf="@id/progress_bar"
+		tools:ignore="UnusedAttribute"
 		tools:text="CLASS"/>
 
 </merge>

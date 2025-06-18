@@ -11,7 +11,6 @@ import android.telephony.CellInfoLte
 import android.telephony.CellInfoWcdma
 import android.telephony.TelephonyManager
 import androidx.annotation.IntRange
-import androidx.annotation.RequiresApi
 import com.blinkit.droiddex.constants.PerformanceClass
 import com.blinkit.droiddex.constants.PerformanceLevel
 import com.blinkit.droiddex.factory.base.PerformanceManager
@@ -19,9 +18,7 @@ import com.blinkit.droiddex.factory.providers.PerformanceManagerProvider
 import com.blinkit.droiddex.network.utils.BandwidthManager
 import com.blinkit.droiddex.utils.getPerformanceLevelWithWeights
 
-internal class NetworkPerformanceManager(
-	private val applicationContext: Context, isInDebugMode: Boolean
-): PerformanceManager(isInDebugMode) {
+internal class NetworkPerformanceManager(private val applicationContext: Context): PerformanceManager() {
 
 	private val bandwidthManager by lazy { BandwidthManager(logger) }
 
@@ -43,20 +40,16 @@ internal class NetworkPerformanceManager(
 
 		return getPerformanceLevelWithWeights(mutableListOf<Pair<PerformanceLevel, Float>>().apply {
 			bandwidthAverageStrengthLevel?.let { add(Pair(it, 2F)) }
-			downloadSpeedLevel?.let { add(Pair(it, 1F)) }
+			add(Pair(downloadSpeedLevel, 1F))
 			signalStrengthLevel?.let { add(Pair(it, 1F)) }
 		})
 	}
 
 	private fun isInternetConnected(): Boolean {
 		val connectivityManager = getConnectivityManager() ?: return false
-		return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-			val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-			capabilities?.let {
-				it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || it.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-			}
-		} else {
-			@Suppress("DEPRECATION") connectivityManager.activeNetworkInfo?.isConnected
+		val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+		return capabilities?.let {
+			it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || it.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
 		} ?: false
 	}
 
@@ -68,7 +61,6 @@ internal class NetworkPerformanceManager(
 		else -> PerformanceLevel.EXCELLENT
 	}?.also { logDebug("BANDWIDTH AVERAGE STRENGTH TYPE: ${it.name}") }
 
-	@RequiresApi(Build.VERSION_CODES.M)
 	private fun getDownloadSpeed(): Int {
 		val connectivityManager = getConnectivityManager() ?: return 0
 		val network = connectivityManager.activeNetwork ?: return 0
@@ -76,32 +68,31 @@ internal class NetworkPerformanceManager(
 		return (networkCapabilities?.linkDownstreamBandwidthKbps ?: 0).also { logDebug("DOWNLOAD SPEED: $it Kb/s") }
 	}
 
-	private fun getDownloadSpeedStrengthLevel() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+	private fun getDownloadSpeedStrengthLevel(): PerformanceLevel {
 		val downloadSpeed = getDownloadSpeed()
-		when {
+
+		val downloadSpeedStrengthLevel = when {
 			downloadSpeed >= EXCELLENT_DOWNLOAD_SPEED_THRESHOLD -> PerformanceLevel.EXCELLENT
 			downloadSpeed >= HIGH_DOWNLOAD_SPEED_THRESHOLD -> PerformanceLevel.HIGH
 			downloadSpeed >= AVERAGE_DOWNLOAD_SPEED_THRESHOLD -> PerformanceLevel.AVERAGE
 			else -> PerformanceLevel.LOW
-		}.also { logDebug("DOWNLOAD SPEED TYPE: ${it.name}") }
-	} else null
+		}
+
+		logDebug("DOWNLOAD SPEED TYPE: ${downloadSpeedStrengthLevel.name}")
+
+		return downloadSpeedStrengthLevel
+	}
 
 	private fun getNetworkType(): NetworkType {
 		val connectivityManager = getConnectivityManager() ?: return NetworkType.UNKNOWN
-		return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-			val activeNetwork = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-				?: return NetworkType.UNKNOWN
-			when {
-				activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> NetworkType.WIFI
-				activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> NetworkType.CELLULAR
-				else -> NetworkType.UNKNOWN
-			}
-		} else {
-			@Suppress("DEPRECATION") when (connectivityManager.activeNetworkInfo?.type) {
-				ConnectivityManager.TYPE_WIFI -> NetworkType.WIFI
-				ConnectivityManager.TYPE_MOBILE -> NetworkType.CELLULAR
-				else -> NetworkType.UNKNOWN
-			}
+
+		val activeNetwork =
+			connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork) ?: return NetworkType.UNKNOWN
+
+		return when {
+			activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> NetworkType.WIFI
+			activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> NetworkType.CELLULAR
+			else -> NetworkType.UNKNOWN
 		}.also { logDebug("NETWORK TYPE: ${it.name}") }
 	}
 
@@ -130,16 +121,12 @@ internal class NetworkPerformanceManager(
 				is CellInfoWcdma -> info.cellSignalStrength.level
 				else -> 0
 			}
-		} catch (e: SecurityException) {
+		} catch (_: SecurityException) {
 			0
 		}).also { logDebug("CELLULAR SIGNAL LEVEL: $it") }
 
 		val networkGeneration = (try {
-			val networkType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-				telephonyManager.dataNetworkType
-			} else {
-				@Suppress("DEPRECATION") telephonyManager.networkType
-			}
+			val networkType = telephonyManager.dataNetworkType
 			@Suppress("DEPRECATION") when (networkType) {
 				TelephonyManager.NETWORK_TYPE_GPRS, TelephonyManager.NETWORK_TYPE_EDGE, TelephonyManager.NETWORK_TYPE_CDMA, TelephonyManager.NETWORK_TYPE_1xRTT, TelephonyManager.NETWORK_TYPE_IDEN -> NetworkGeneration.NETWORK_2G
 				TelephonyManager.NETWORK_TYPE_UMTS, TelephonyManager.NETWORK_TYPE_EVDO_0, TelephonyManager.NETWORK_TYPE_EVDO_A, TelephonyManager.NETWORK_TYPE_HSDPA, TelephonyManager.NETWORK_TYPE_HSUPA, TelephonyManager.NETWORK_TYPE_HSPA, TelephonyManager.NETWORK_TYPE_EVDO_B, TelephonyManager.NETWORK_TYPE_EHRPD, TelephonyManager.NETWORK_TYPE_HSPAP -> NetworkGeneration.NETWORK_3G
@@ -147,7 +134,7 @@ internal class NetworkPerformanceManager(
 				TelephonyManager.NETWORK_TYPE_NR -> NetworkGeneration.NETWORK_5G
 				else -> NetworkGeneration.UNKNOWN
 			}
-		} catch (e: SecurityException) {
+		} catch (_: SecurityException) {
 			NetworkGeneration.UNKNOWN
 		}).also { logDebug("CELLULAR NETWORK GENERATION: ${it.name}") }
 
@@ -185,8 +172,8 @@ internal class NetworkPerformanceManager(
 
 	companion object: PerformanceManagerProvider {
 
-		override fun create(applicationContext: Context, isInDebugMode: Boolean): PerformanceManager =
-			NetworkPerformanceManager(applicationContext, isInDebugMode)
+		override fun create(applicationContext: Context): PerformanceManager =
+			NetworkPerformanceManager(applicationContext)
 
 		private const val DELAY_IN_SECS = 2.5F
 

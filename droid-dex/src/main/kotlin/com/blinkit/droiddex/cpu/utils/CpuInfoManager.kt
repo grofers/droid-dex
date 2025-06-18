@@ -74,7 +74,7 @@ internal class CpuInfoManager(private val logger: Logger) {
 
 		private fun readFile(path: String): Long = try {
 			BufferedReader(FileReader(path)).use { reader -> reader.readLine()?.toLongOrNull() }
-		} catch (e: Exception) {
+		} catch (_: Exception) {
 			null
 		} ?: 0
 	}

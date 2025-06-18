@@ -1,20 +1,22 @@
 package com.blinkit.droiddex.utils
 
+import com.blinkit.droiddex.BuildConfig
 import com.blinkit.droiddex.constants.PerformanceClass
 import com.blinkit.droiddex.constants.PerformanceClass.Companion.name
 import com.blinkit.droiddex.constants.PerformanceLevel
 import timber.log.Timber
 
-internal class Logger(var isInDebugMode: Boolean = false, @PerformanceClass private val performanceClass: Int? = null) {
+internal class Logger(@PerformanceClass private val performanceClass: Int? = null) {
 
 	fun logPerformanceLevelChange(level: PerformanceLevel, hasPerformanceLevelChanged: Boolean) {
-		if (hasPerformanceLevelChanged || isInDebugMode) logInfo("PERFORMANCE LEVEL: ${level.name}")
+		if (hasPerformanceLevelChanged || BuildConfig.DEBUG) logInfo("PERFORMANCE LEVEL: ${level.name}")
 	}
 
 	fun logPerformanceLevelResult(
 		vararg classes: Pair<@PerformanceClass Int, Float>, performanceLevel: PerformanceLevel
 	) {
-		logDebug("PERFORMANCE CLASSES: ${
+		logDebug(
+			"PERFORMANCE CLASSES: ${
 			classes.joinToString(", ") { it.first.name() + if (it.second != 1F) "(WEIGHT: ${it.second})" else "" }
 		} | PERFORMANCE LEVEL: $performanceLevel")
 	}
@@ -31,7 +33,7 @@ internal class Logger(var isInDebugMode: Boolean = false, @PerformanceClass priv
 		getTimber().e(exception)
 	}
 
-	private fun getTimber() = Timber.tag("DROID-DEX")
+	private fun getTimber(): Timber.Tree = Timber.tag("DROID-DEX")
 
 	private fun beautifyMessage(message: String): String =
 		performanceClass?.let { "${it.name()} | $message" } ?: message

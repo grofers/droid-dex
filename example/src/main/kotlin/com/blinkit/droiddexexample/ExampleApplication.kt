@@ -11,6 +11,6 @@ class ExampleApplication: Application() {
 
 		Timber.plant(Timber.DebugTree())
 
-		DroidDex.init(this, BuildConfig.DEBUG)
+		DroidDex.init(this)
 	}
 }
