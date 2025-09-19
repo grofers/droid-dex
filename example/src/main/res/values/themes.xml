@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
 	<style name="BaseDroidDexExampleTheme" parent="Theme.Material3.Light.NoActionBar">
 		<item name="android:statusBarColor">@android:color/white</item>
 		<item name="android:windowLightStatusBar">true</item>
+		<item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
 
 		<item name="fontFamily">@font/poppins</item>
 		<item name="android:fontFamily">@font/poppins</item>
