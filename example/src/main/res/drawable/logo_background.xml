@@ -12,5 +12,6 @@
 		android:width="150dp"
 		android:height="30dp"
 		android:drawable="@drawable/logo"
-		android:gravity="center"/>
+		android:gravity="center|bottom"
+		android:bottom="18dp"/>
 </layer-list>
