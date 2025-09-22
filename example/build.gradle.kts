@@ -15,6 +15,7 @@ android {
 		applicationId = "com.blinkit.droiddexexample"
 
 		minSdk = libs.versions.sdk.min.get().toInt()
+		targetSdk = libs.versions.sdk.target.get().toInt()
 
 		versionCode = 1
 		versionName = "1.0"
