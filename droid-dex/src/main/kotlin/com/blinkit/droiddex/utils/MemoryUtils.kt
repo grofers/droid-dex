@@ -2,7 +2,6 @@ package com.blinkit.droiddex.utils
 
 import android.app.ActivityManager
 import android.content.Context
-import kotlin.math.min
 
 internal fun getMemoryInfo(applicationContext: Context, logger: Logger): ActivityManager.MemoryInfo =
 	ActivityManager.MemoryInfo().also { getActivityManager(applicationContext, logger)?.getMemoryInfo(it) }
