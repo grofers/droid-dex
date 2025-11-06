@@ -99,7 +99,7 @@ internal class NetworkPerformanceManager(private val applicationContext: Context
 	@IntRange(from = 0, to = 4)
 	private fun getWifiSignalLevel(): Int {
 		val wifiManger =
-			applicationContext.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return 0
+			applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return 0
 		@Suppress("DEPRECATION") val wifiInfo = wifiManger.connectionInfo
 		return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
 			wifiManger.calculateSignalLevel(wifiInfo.rssi)
