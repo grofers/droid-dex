@@ -8,6 +8,7 @@ import android.os.Build
 import android.telephony.CellInfoCdma
 import android.telephony.CellInfoGsm
 import android.telephony.CellInfoLte
+import android.telephony.CellInfoNr
 import android.telephony.CellInfoWcdma
 import android.telephony.TelephonyManager
 import androidx.annotation.IntRange
@@ -98,8 +99,7 @@ internal class NetworkPerformanceManager(private val applicationContext: Context
 
 	@IntRange(from = 0, to = 4)
 	private fun getWifiSignalLevel(): Int {
-		val wifiManger =
-			applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return 0
+		val wifiManger = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return 0
 		@Suppress("DEPRECATION") val wifiInfo = wifiManger.connectionInfo
 		return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
 			wifiManger.calculateSignalLevel(wifiInfo.rssi)
@@ -113,17 +113,32 @@ internal class NetworkPerformanceManager(private val applicationContext: Context
 		val telephonyManager =
 			applicationContext.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager ?: return 0
 
-		val signalLevel = (try {
-			when (val info = telephonyManager.allCellInfo?.firstOrNull()) {
-				is CellInfoLte -> info.cellSignalStrength.level
-				is CellInfoGsm -> info.cellSignalStrength.level
-				is CellInfoCdma -> info.cellSignalStrength.level
-				is CellInfoWcdma -> info.cellSignalStrength.level
-				else -> 0
+		val signalLevel = try {
+			val info = telephonyManager.allCellInfo?.firstOrNull()
+
+			when {
+				// Modern devices (Android 11 or above)
+				Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+					info?.cellSignalStrength?.level ?: 0 //handles all cell types (5G, LTE, etc.) automatically.
+				}
+
+				// Android 10+ and 5G
+				Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && info is CellInfoNr -> {
+					info.cellSignalStrength.level
+				}
+
+				// All other devices
+				else -> @Suppress("DEPRECATION") when (info) {
+					is CellInfoLte -> info.cellSignalStrength.level
+					is CellInfoGsm -> info.cellSignalStrength.level
+					is CellInfoWcdma -> info.cellSignalStrength.level
+					is CellInfoCdma -> info.cellSignalStrength.level // Deprecated , but included for backward compatibility.
+					else -> 0
+				}
 			}
 		} catch (_: SecurityException) {
 			0
-		}).also { logDebug("CELLULAR SIGNAL LEVEL: $it") }
+		}.also { logDebug("CELLULAR SIGNAL LEVEL: $it") }
 
 		val networkGeneration = (try {
 			val networkType = telephonyManager.dataNetworkType
