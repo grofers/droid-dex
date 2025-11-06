@@ -1,3 +1,7 @@
+[![Maven Central Version](https://img.shields.io/maven-central/v/com.eternal.kits/droid-dex?strategy=highestVersion)](https://mvnrepository.com/artifact/com.eternal.kits/droid-dex) [![GitHub Issues](https://img.shields.io/github/issues/grofers/droid-dex)](https://github.com/grofers/droid-dex/issues) [![GitHub Stars](https://img.shields.io/github/stars/grofers/droid-dex?style=flat)](https://github.com/grofers/droid-dex/stargazers) [![GitHub License](https://img.shields.io/github/license/grofers/droid-dex)](https://github.com/grofers/droid-dex?tab=GPL-2.0-1-ov-file#readme)
+
+<br/>
+
 <!--suppress HtmlDeprecatedAttribute -->
 <div align="center">
 
@@ -7,12 +11,13 @@
 
 ## Introduction
 
-Droid Dex is a powerful tool crafted to enhance the performance of your Android applications, ultimately elevating the
-user experience. With a focus on addressing key performance issues, it is your solution for addressing prevalent
-challenges like Jerky(Janky) Scrolling, Out of Memory errors (OOMs), High Battery Consumption, and instances of
-Application Not Responding (ANR).
+Droid Dex helps you make smart, device-aware decisions like:
 
-It classifies and lets you analyze Android Device Performance across various parameters like:
+- Delivering high-definition images and advanced animations only to capable devices
+- Optimize layouts for mid-tier phones to prevent lag and freezes
+- Skip heavy video playback on lower-end hardware to avoid crashes
+
+It is a powerful tool that classifies and analyzes Android device performance across multiple parameters:
 
 | PARAMETER                                                                                                                  | DESCRIPTION                                         |
 |----------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
@@ -22,17 +27,19 @@ It classifies and lets you analyze Android Device Performance across various par
 | <div align="center">[STORAGE](./droid-dex/src/main/kotlin/com/blinkit/droiddex/storage/StoragePerformanceManager.kt)</div> | Available Storage                                   |
 | <div align="center">[BATTERY](./droid-dex/src/main/kotlin/com/blinkit/droiddex/battery/BatteryPerformanceManager.kt)</div> | Percentage Remaining, If Phone is Charging or Not   |
 
-into various [levels](./droid-dex/src/main/kotlin/com/blinkit/droiddex/constants/PerformanceLevel.kt): EXCELLENT, HIGH,
-AVERAGE, LOW
+into various [levels](./droid-dex/src/main/kotlin/com/blinkit/droiddex/constants/PerformanceLevel.kt): **EXCELLENT**,
+**HIGH**, **AVERAGE**, **LOW**
 
-It is a compact library accompanied by extensive in-line documentation, providing users with the opportunity to delve
-into the code, comprehend each line thoroughly, and, ideally, contribute to its development.
+Droid Dex enhances your Android application's performance and elevates user experience by addressing key performance
+challenges such as Janky scrolling, Out of Memory (OOM) errors, High battery consumption, and Application Not
+Responding (ANR) instances.
+
+More Info: https://lambda.blinkit.com/droid-dex-1f807901626f
 
 ## Use Cases
 
-1. Consider a scenario where background polling of an API is necessary. In this context, the `BATTERY` level becomes a
-   crucial factor, as frequent polling can significantly drain the device's battery. To address this concern, you can
-   optimize the process using the following code snippet:
+1. **Battery-Aware API Polling**: When background polling of an API is required, frequent requests can significantly
+   drain the device's battery. Use the `BATTERY` performance level to dynamically adjust polling intervals:
 
    ```Kotlin
    DroidDex.getPerformanceLevelLd(PerformanceClass.BATTERY).observe(this) {
@@ -40,10 +47,9 @@ into the code, comprehend each line thoroughly, and, ideally, contribute to its 
    }
    ```
 
-2. Consider a scenario where you need to tailor the image quality for users based on their devices. In this context, the
-   `NETWORK` condition plays a crucial role in decision-making, as achieving better image quality typically involves
-   larger file sizes and increased data transfer. However, `MEMORY` is also a consideration, as higher-quality images
-   generate heavier bitmaps, consuming more memory. To optimize this process, you can use the following code snippet:
+2. **Adaptive Image Quality**: When tailoring image quality based on device capabilities, both `NETWORK` and `MEMORY`
+   conditions are important. Better image quality requires larger file sizes (impacting network) and generates heavier
+   bitmaps (consuming memory). Optimize image quality delivery using weighted performance levels:
 
    ```Kotlin
    DroidDex.getWeightedPerformanceLevelLd(PerformanceClass.NETWORK to 2F, PerformanceClass.MEMORY to 1F).observe(this) {
@@ -72,7 +78,7 @@ DroidDex.init(this) // Parameter: Application Context
     }
     ```
 
-   Replace `params` with comma separated list of `Performance Class(es)`.
+   Replace `params` with a comma-separated list of `Performance Class(es)`.
 
    Example:
    ```Kotlin
@@ -92,19 +98,13 @@ DroidDex.init(this) // Parameter: Application Context
     }
     ```
 
-   Replace `params` with a comma separated list of `Performance Classes` to their `Weights`.
+   Replace `params` with a comma-separated list of `Performance Classes` mapped to their `Weights`.
 
    Example:
    ```Kotlin
    DroidDex.getWeightedPerformanceLevelLd(PerformanceClass.CPU to 2F, PerformanceClass.MEMORY to 1F).observe(this) {
    }
    ```
-
-<!--suppress HtmlDeprecatedAttribute -->
-<div align="center">
-	<!--suppress CheckImageSize -->
-	<img src="./assets/example.png" alt="Example App" width="250">
-</div>
 
 See [Example Project](example) for further usage
 
