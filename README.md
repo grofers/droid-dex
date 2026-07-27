@@ -21,14 +21,16 @@ It is a powerful tool that classifies and analyzes Android device performance ac
 
 | PARAMETER                                                                                                                  | DESCRIPTION                                         |
 |----------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
-| <div align="center">[CPU](./droid-dex/src/main/kotlin/com/blinkit/droiddex/cpu/CpuPerformanceManager.kt)</div>             | Total RAM, Core Count, CPU Frequency                |
-| <div align="center">[MEMORY](./droid-dex/src/main/kotlin/com/blinkit/droiddex/memory/MemoryPerformanceManager.kt)</div>    | Heap Limit, Heap Remaining, Available RAM           |
+| <div align="center">[CPU](./droid-dex/src/main/kotlin/com/blinkit/droiddex/cpu/CpuPerformanceManager.kt)</div>             | Core Microarchitecture, CPU Frequency, Media Performance Class, Low-End Hardware Signals |
+| <div align="center">[MEMORY](./droid-dex/src/main/kotlin/com/blinkit/droiddex/memory/MemoryPerformanceManager.kt)</div>    | Total RAM, OEM Memory Class, Runtime Memory Pressure |
 | <div align="center">[NETWORK](./droid-dex/src/main/kotlin/com/blinkit/droiddex/network/NetworkPerformanceManager.kt)</div> | Bandwidth Strength, Download Speed, Signal Strength |
 | <div align="center">[STORAGE](./droid-dex/src/main/kotlin/com/blinkit/droiddex/storage/StoragePerformanceManager.kt)</div> | Available Storage                                   |
 | <div align="center">[BATTERY](./droid-dex/src/main/kotlin/com/blinkit/droiddex/battery/BatteryPerformanceManager.kt)</div> | Percentage Remaining, If Phone is Charging or Not   |
+| <div align="center">[THERMAL](./droid-dex/src/main/kotlin/com/blinkit/droiddex/thermal/ThermalPerformanceManager.kt)</div> | Thermal Throttling Status, Thermal Headroom Forecast |
 
 into various [levels](./droid-dex/src/main/kotlin/com/blinkit/droiddex/constants/PerformanceLevel.kt): **EXCELLENT**,
-**HIGH**, **AVERAGE**, **LOW**
+**HIGH**, **AVERAGE**, **LOW**, plus **UNKNOWN** for a parameter this device cannot measure (excluded
+from aggregation)
 
 Droid Dex enhances your Android application's performance and elevates user experience by addressing key performance
 challenges such as Janky scrolling, Out of Memory (OOM) errors, High battery consumption, and Application Not
@@ -56,6 +58,21 @@ More Info: https://lambda.blinkit.com/droid-dex-1f807901626f
       // Implement image quality optimization
    }
    ```
+
+3. **Heat-Aware Workloads**: Sustained work such as video export, on-device inference or camera capture makes the
+   device hot, and the platform then throttles it regardless of what the app wants. `THERMAL` reports how much
+   sustained performance is still available, so heavy work can be scaled back before the throttling bites:
+
+   ```Kotlin
+   DroidDex.getPerformanceLevelLd(PerformanceClass.THERMAL).observe(this) {
+      // Shed background work, lower encode quality or pause inference as the level drops
+   }
+   ```
+
+   `THERMAL` reports `UNKNOWN` below Android 10, where no public thermal API exists, and also on devices whose
+   hardware exposes no usable thermal sensor HAL (where a real reading is unavailable rather than "not throttling").
+   Since `UNKNOWN` parameters are excluded from aggregation, `THERMAL` only contributes when it has a trustworthy
+   signal, so it is safe to combine with other classes.
 
 ## Usage
 
@@ -118,6 +135,9 @@ The latest release is available on [Maven Central](https://central.sonatype.com/
 ```Kotlin
 implementation("com.eternal.kits:droid-dex:<<latest_version>>")
 ```
+
+Pre-release builds are published as `-betaNN` (e.g. `4.0.0-beta01`). Gradle treats them as pre-release
+versions, so dynamic versions and `latest.release` skip them - pin the exact string to opt in.
 
 </details>
 

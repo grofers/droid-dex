@@ -10,6 +10,7 @@ import com.blinkit.droiddex.factory.base.PerformanceManager
 import com.blinkit.droiddex.memory.MemoryPerformanceManager
 import com.blinkit.droiddex.network.NetworkPerformanceManager
 import com.blinkit.droiddex.storage.StoragePerformanceManager
+import com.blinkit.droiddex.thermal.ThermalPerformanceManager
 
 internal class PerformanceManagerFactory(private val applicationContext: Context) {
 
@@ -33,6 +34,7 @@ internal class PerformanceManagerFactory(private val applicationContext: Context
 				PerformanceClass.STORAGE -> StoragePerformanceManager.create(applicationContext)
 				PerformanceClass.NETWORK -> NetworkPerformanceManager.create(applicationContext)
 				PerformanceClass.BATTERY -> BatteryPerformanceManager.create(applicationContext)
+				PerformanceClass.THERMAL -> ThermalPerformanceManager.create(applicationContext)
 				else -> throw IllegalArgumentException("NO SUCH PERFORMANCE CLASS EXISTS: $performanceClass")
 			}.apply { init() }
 		}

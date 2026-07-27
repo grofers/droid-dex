@@ -9,7 +9,8 @@ import com.blinkit.droiddex.factory.base.PerformanceManager
 import com.blinkit.droiddex.factory.providers.PerformanceManagerProvider
 import com.blinkit.droiddex.utils.convertBytesToGB
 
-internal class StoragePerformanceManager: PerformanceManager() {
+/** Classifies free external-storage headroom in GB; 0 readable GB means the signal is unavailable. */
+internal class StoragePerformanceManager(applicationContext: Context): PerformanceManager(applicationContext) {
 
 	override fun getPerformanceClass() = PerformanceClass.STORAGE
 
@@ -39,7 +40,7 @@ internal class StoragePerformanceManager: PerformanceManager() {
 
 	companion object: PerformanceManagerProvider {
 
-		override fun create(applicationContext: Context): PerformanceManager = StoragePerformanceManager()
+		override fun create(applicationContext: Context): PerformanceManager = StoragePerformanceManager(applicationContext)
 
 		private const val DELAY_IN_SECS = 600F
 	}

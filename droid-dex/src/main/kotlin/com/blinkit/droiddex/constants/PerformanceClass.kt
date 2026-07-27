@@ -9,7 +9,8 @@ import androidx.annotation.Keep
 	PerformanceClass.MEMORY,
 	PerformanceClass.STORAGE,
 	PerformanceClass.NETWORK,
-	PerformanceClass.BATTERY
+	PerformanceClass.BATTERY,
+	PerformanceClass.THERMAL
 )
 @Retention(AnnotationRetention.SOURCE)
 @Target(
@@ -28,8 +29,9 @@ public annotation class PerformanceClass {
 		public const val STORAGE: Int = 2
 		public const val NETWORK: Int = 3
 		public const val BATTERY: Int = 4
+		public const val THERMAL: Int = 5
 
-		internal fun values(): List<Int> = listOf(CPU, MEMORY, STORAGE, NETWORK, BATTERY)
+		internal fun values(): List<Int> = listOf(CPU, MEMORY, STORAGE, NETWORK, BATTERY, THERMAL)
 
 		public fun @PerformanceClass Int.name() = when (this) {
 			CPU -> "CPU"
@@ -37,6 +39,7 @@ public annotation class PerformanceClass {
 			STORAGE -> "STORAGE"
 			NETWORK -> "NETWORK"
 			BATTERY -> "BATTERY"
+			THERMAL -> "THERMAL"
 			else -> this.toString()
 		}
 	}

@@ -9,7 +9,11 @@ import com.blinkit.droiddex.constants.PerformanceLevel
 import com.blinkit.droiddex.factory.base.PerformanceManager
 import com.blinkit.droiddex.factory.providers.PerformanceManagerProvider
 
-internal class BatteryPerformanceManager(private val applicationContext: Context): PerformanceManager() {
+/**
+ * Classifies battery readiness from the current charge percentage and charging state; charging
+ * earns each tier at a slightly lower percentage since the level is trending up.
+ */
+internal class BatteryPerformanceManager(applicationContext: Context): PerformanceManager(applicationContext) {
 
 	override fun getPerformanceClass() = PerformanceClass.BATTERY
 
