@@ -18,7 +18,11 @@ import com.blinkit.droiddex.factory.providers.PerformanceManagerProvider
 import com.blinkit.droiddex.network.utils.BandwidthManager
 import com.blinkit.droiddex.utils.getPerformanceLevelWithWeights
 
-internal class NetworkPerformanceManager(private val applicationContext: Context): PerformanceManager() {
+/**
+ * Classifies current network quality from a weighted mix of the measured bandwidth average,
+ * the link's reported download speed and the WiFi/cellular signal strength; no internet reports LOW.
+ */
+internal class NetworkPerformanceManager(applicationContext: Context): PerformanceManager(applicationContext) {
 
 	private val bandwidthManager by lazy { BandwidthManager(logger) }
 

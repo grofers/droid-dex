@@ -21,21 +21,31 @@ internal class CpuInfoManager(private val logger: Logger) {
 		)
 	}
 
+	/** Per-core cpuinfo_max_freq in kHz, index-aligned with cpu0..cpuN; 0 means unknown. */
+	val coreMaxFreqsInKHz: List<Long>
+		get() = coresFreqList.map { it.max }
+
+	/** Per-core cpuinfo_min_freq in kHz, index-aligned with cpu0..cpuN; 0 means unknown. */
+	val coreMinFreqsInKHz: List<Long>
+		get() = coresFreqList.map { it.min }
+
 	val currentCpuUsage: Int
 		get() = (coresFreqList.map { it.currentUsagePercent }.average()?.toInt()
 			?: 0).also { logger.logDebug("CURRENT USAGE: ${it}%") }
 
 	val maxCpuFreqInMHz: Int
-		get() = ((coresFreqList.map { it.max }.average()?.toLong()?.takeIf { it > 0 }?.div(1000)?.toInt())
-			?: Int.MAX_VALUE).also { logger.logDebug("MAX CPU FREQUENCY: $it MHz") }
+		get() = averageFreqInMHz(coreMaxFreqsInKHz).also { logger.logDebug("MAX CPU FREQUENCY: $it MHz") }
 
 	val minCpuFreqInMHz: Int
-		get() = ((coresFreqList.map { it.min }.average()?.toLong()?.takeIf { it > 0 }?.div(1000)?.toInt())
-			?: Int.MAX_VALUE).also { logger.logDebug("MIN CPU FREQUENCY: $it MHz") }
+		get() = averageFreqInMHz(coreMinFreqsInKHz).also { logger.logDebug("MIN CPU FREQUENCY: $it MHz") }
 
 	init {
 		for (i in 0 until noOfCores) coresFreqList.add(CoreFreq(i))
 	}
+
+	/** Mean of the per-core frequencies in MHz; [Int.MAX_VALUE] when no frequency is readable. */
+	private fun averageFreqInMHz(coreFreqsInKHz: List<Long>): Int =
+		coreFreqsInKHz.average()?.toLong()?.takeIf { it > 0 }?.div(KHZ_PER_MHZ)?.toInt() ?: Int.MAX_VALUE
 
 	private class CoreFreq(private val index: Int) {
 
@@ -82,5 +92,7 @@ internal class CpuInfoManager(private val logger: Logger) {
 	companion object {
 
 		private const val CPU_INFO_PATH = "/sys/devices/system/cpu/"
+
+		private const val KHZ_PER_MHZ = 1000
 	}
 }

@@ -96,6 +96,13 @@
 					android:layout_marginHorizontal="6dp"
 					android:layout_weight="1"/>
 
+				<com.blinkit.droiddexexample.views.ItemView
+					android:id="@+id/thermal"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:layout_marginHorizontal="6dp"
+					android:layout_weight="1"/>
+
 			</LinearLayout>
 
 			<TextView

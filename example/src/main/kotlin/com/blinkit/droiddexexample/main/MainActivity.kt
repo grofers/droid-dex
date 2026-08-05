@@ -38,6 +38,7 @@ class MainActivity: AppCompatActivity() {
 		setupClasses(binding.network, PerformanceClass.NETWORK)
 		setupClasses(binding.storage, PerformanceClass.STORAGE)
 		setupClasses(binding.battery, PerformanceClass.BATTERY)
+		setupClasses(binding.thermal, PerformanceClass.THERMAL)
 
 		setupClasses(binding.cpuAndMemory, PerformanceClass.CPU, PerformanceClass.MEMORY)
 		setupClasses(binding.networkAndStorage, PerformanceClass.NETWORK, PerformanceClass.STORAGE)
