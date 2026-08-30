@@ -6,8 +6,6 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
 import android.os.SystemClock
-import androidx.lifecycle.ProcessLifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import com.blinkit.droiddex.constants.PerformanceClass
 import com.blinkit.droiddex.constants.PerformanceLevel
 import com.blinkit.droiddex.factory.base.PerformanceManager
@@ -17,8 +15,9 @@ import com.blinkit.droiddex.utils.getMemoryClassInMB
 import com.blinkit.droiddex.utils.getMemoryInfo
 import com.blinkit.droiddex.utils.getTotalRamInGB
 import com.blinkit.droiddex.utils.isLowRamDevice
+import com.blinkit.droiddex.utils.isProcessStarted
+import com.blinkit.droiddex.utils.pollScope
 import kotlin.concurrent.Volatile
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -219,10 +218,36 @@ internal class MemoryPerformanceManager(
 		}
 		logInfo("TRIM SIGNAL (LEVEL: $level) -> $severity")
 
-		// Storm guard: a refreshed timestamp alone doesn't need an immediate publish.
-		if (activeRawTrimPressure(now) != previousSeverity) remeasureAsync()
+		// Storm guard: a refreshed timestamp alone doesn't need an immediate publish. Backgrounded
+		// trims are stamps-only: the process is being reclaimed and the main thread is already
+		// starved, so even launching a coroutine here can stall past the ANR budget (seen in the
+		// field on FCM-woken cold starts). A backgrounded trim therefore does not publish; it leaves a
+		// hint that the next foreground measurement consumes if the process returns inside the stamp's
+		// validity window (15-30s), and drops otherwise. For a process that never foregrounds - the
+		// crash population - the hint always expires unused, i.e. background trim publishing is off;
+		// that is fine because nothing reads the level while backgrounded, and the polled state at
+		// foreground return (the primary signal for this class) decides it either way.
+		if (activeRawTrimPressure(now) != previousSeverity && isProcessInteractive()) remeasureAsync()
 	}
 
+	/**
+	 * Reads [isProcessStarted], a volatile flag kept by the shared process-lifecycle observer in
+	 * runAsyncPeriodically - so the trim path never touches ProcessLifecycleOwner/Lifecycle on the
+	 * (possibly starved) main thread, just reads a field.
+	 *
+	 * STARTED, not RESUMED: this gate only asks whether the main thread is healthy enough to launch
+	 * on, and a visible-but-unfocused process (dialog, translucent activity) is. The poll loop's own
+	 * RESUMED gate answers a different question - whether the level is worth refreshing at all. The
+	 * flag defaults false until the observer registers, so an early trim is treated as backgrounded
+	 * (stamp-only) - fail-safe, and the unconditional first poll seeds the level regardless.
+	 */
+	private fun isProcessInteractive(): Boolean = isProcessStarted
+
+	/**
+	 * Routed through [onTrimMemory] as CRITICAL, so a backgrounded onLowMemory is stamps-only too -
+	 * deliberate: it is the most severe signal, which makes launching on the starved main thread the
+	 * riskiest, and the stamp is still consumed at foreground return like any other trim.
+	 */
 	@Suppress("DEPRECATION")
 	override fun onLowMemory() = onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
 
@@ -279,15 +304,17 @@ internal class MemoryPerformanceManager(
 		stampMs != 0L && nowMs - stampMs <= validityMs
 
 	/**
-	 * Publishes without waiting for the next poll tick, and works while polling is paused in the
-	 * background. Immediate calls are coalesced so trim bursts cannot queue unbounded measures.
+	 * Publishes without waiting for the next poll tick. Immediate calls are coalesced so trim
+	 * bursts cannot queue unbounded measures. Runs on the shared [pollScope] rather than the process
+	 * lifecycleScope: the lifecycle-scope lookup and launch walk enough code on the caller thread to
+	 * ANR when this fires from a trim callback on a memory-starved device.
 	 */
 	private fun remeasureAsync(delayInMs: Long = 0L) {
 		if (delayInMs == 0L) {
 			if (hasPendingImmediateRemeasure) return
 			hasPendingImmediateRemeasure = true
 		}
-		ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.IO) {
+		pollScope.launch {
 			if (delayInMs > 0L) delay(delayInMs) else hasPendingImmediateRemeasure = false
 			measureAndPublish()
 		}
