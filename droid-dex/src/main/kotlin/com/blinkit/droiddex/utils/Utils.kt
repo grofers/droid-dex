@@ -1,16 +1,20 @@
 package com.blinkit.droiddex.utils
 
-import androidx.lifecycle.Lifecycle
+import android.os.Handler
+import android.os.Looper
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.ProcessLifecycleOwner
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import com.blinkit.droiddex.constants.PerformanceLevel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -52,14 +56,53 @@ internal fun getPerformanceLevelLdWithWeights(
 	}
 }
 
-internal fun runAsyncPeriodically(block: () -> Unit, delayInSecs: Float) = with(ProcessLifecycleOwner.get()) {
-	block()
-	lifecycleScope.launch {
-		repeatOnLifecycle(Lifecycle.State.RESUMED) {
-			while (true) {
-				withContext(Dispatchers.IO) { block() }
-				delay((delayInSecs * 1000).toLong())
+/** Process-lifetime worker for every periodic measurement; deliberately never cancelled. */
+private val pollScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+/** True while the process is RESUMED; written only by [registerForegroundTrackerOnce]'s observer. */
+private val isProcessResumed = MutableStateFlow(false)
+
+/**
+ * One observer for all pollers, replacing a repeatOnLifecycle per manager. Always posted, never run
+ * inline: init reaches here on the caller thread inside Application.onCreate, and the
+ * ProcessLifecycleOwner/Lifecycle class-init it would pull in there is exactly what the startup ANR
+ * stacks are parked in. addObserver replays the lifecycle up to the current state, so registering a
+ * message later still seeds the flow correctly.
+ */
+private val registerForegroundTrackerOnce: Unit by lazy {
+	Handler(Looper.getMainLooper()).post {
+		ProcessLifecycleOwner.get().lifecycle.addObserver(object: DefaultLifecycleObserver {
+			override fun onResume(owner: LifecycleOwner) {
+				isProcessResumed.value = true
 			}
+
+			override fun onPause(owner: LifecycleOwner) {
+				isProcessResumed.value = false
+			}
+		})
+	}
+	Unit
+}
+
+/**
+ * Runs [block] once right away (whatever the process state, so a background start still seeds a
+ * level), then keeps re-running it every [delayInSecs] while the process is RESUMED. In the
+ * background the loop parks at the gate; a resume from there measures at once, but a resume landing
+ * mid-delay waits the remainder out - one poll period of staleness at worst.
+ *
+ * Everything - including the first measurement - runs on [pollScope], never on the caller thread:
+ * the previous shape measured synchronously in the caller (seconds of Application.onCreate work on
+ * low-tier devices) and set up its polling via the process lifecycleScope, putting per-manager
+ * coroutine machinery on the main thread during startup - both showed up as startup ANRs.
+ */
+internal fun runAsyncPeriodically(block: () -> Unit, delayInSecs: Float) {
+	registerForegroundTrackerOnce
+	pollScope.launch {
+		block()
+		while (true) {
+			isProcessResumed.first { it }
+			block()
+			delay((delayInSecs * 1000).toLong())
 		}
 	}
 }
