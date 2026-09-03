@@ -12,6 +12,11 @@ import java.io.File
  * weight of the core design) x (max frequency in GHz). A design absent from [KNOWN_CORE_WEIGHTS] is
  * newer than the table, so it scores as the newest known core of its cluster role - future SoCs
  * tier correctly without a library update.
+ *
+ * Alongside the score, [computeScore] reports the device's flagship generation year (from its
+ * top-frequency core designs, see [flagshipGenerationYear]). The caller uses it to age an EXCELLENT
+ * chip down to HIGH once its generation is old - the score itself is never modified here, so it
+ * stays a pure hardware capability estimate.
  */
 internal class CpuArchitectureScorer(
 	private val logger: Logger, private val cpuInfoPath: String = CPU_INFO_PATH
@@ -19,10 +24,11 @@ internal class CpuArchitectureScorer(
 
 	/**
 	 * @param coreMaxFreqsInKHz per-core cpuinfo_max_freq, index-aligned with cpu0..cpuN; <= 0 means unknown
-	 * @return the synthetic throughput score, or null when no MIDR info is readable (x86 emulator,
-	 * hidden procfs) - callers must then fall back to a heuristic that does not need it
+	 * @return the raw throughput [CpuScore.score] plus the device's [CpuScore.flagshipGenerationYear]
+	 * (for age-capping by the caller), or null when no MIDR info is readable (x86 emulator, hidden
+	 * procfs) - callers must then fall back to a heuristic that does not need it
 	 */
-	fun computeScore(coreMaxFreqsInKHz: List<Long>): Float? = try {
+	fun computeScore(coreMaxFreqsInKHz: List<Long>): CpuScore? = try {
 		val midrIdsByCore = readCpuInfoText()?.let(::parseMidrIds).orEmpty()
 		if (midrIdsByCore.isEmpty()) null else computeScore(coreMaxFreqsInKHz, midrIdsByCore)
 	} catch (e: Exception) {
@@ -30,7 +36,7 @@ internal class CpuArchitectureScorer(
 		null
 	}
 
-	private fun computeScore(coreMaxFreqsInKHz: List<Long>, midrIdsByCore: Map<Int, MidrId>): Float? {
+	private fun computeScore(coreMaxFreqsInKHz: List<Long>, midrIdsByCore: Map<Int, MidrId>): CpuScore? {
 		val coreCount = maxOf(coreMaxFreqsInKHz.size, midrIdsByCore.keys.max() + 1)
 
 		val freqsInKHz = LongArray(coreCount) { maxOf(coreMaxFreqsInKHz.getOrElse(it) { 0L }, 0L) }
@@ -50,8 +56,34 @@ internal class CpuArchitectureScorer(
 			}
 			score += weight * freqsInKHz[core] / KHZ_PER_GHZ
 		}
-		return score.also { logger.logDebug("MICROARCHITECTURE SCORE: $it") }
+
+		val generationYear = flagshipGenerationYear(freqsInKHz, deviceMaxFreqInKHz, midrIdsByCore)
+		return CpuScore(score, generationYear).also {
+			logger.logDebug("MICROARCHITECTURE SCORE: $score (flagship generation $generationYear)")
+		}
 	}
+
+	/**
+	 * The flagship generation year of the device, read from its top-frequency cores only (>= 95% of
+	 * its own max, [PRIME_ROLE_MIN_RELATIVE_FREQ]) with no count cap - so an all-big design like
+	 * Dimensity 8300 (four A715 cores tied at the top frequency) is covered, while an older efficiency
+	 * core paired with a newer prime (below 95% of it) is ignored. An uncatalogued (newer-than-table)
+	 * top core yields no year, so the caller never ages a just-launched flagship - failing safe toward
+	 * EXCELLENT rather than wrongly demoting new hardware.
+	 *
+	 * A top core missing from /proc/cpuinfo (offline during the read) is resolved from a same-frequency
+	 * cluster mate, matching the scoring loop; only a solo prime that is both offline and mateless
+	 * yields no year - an accepted rare gap, consistent with this file's tolerance for partial cpuinfo.
+	 */
+	private fun flagshipGenerationYear(
+		freqsInKHz: LongArray, deviceMaxFreqInKHz: Long, midrIdsByCore: Map<Int, MidrId>
+	): Int? = freqsInKHz.indices
+		.filter { freqsInKHz[it] >= PRIME_ROLE_MIN_RELATIVE_FREQ * deviceMaxFreqInKHz }
+		.mapNotNull { core ->
+			(midrIdsByCore[core] ?: findClusterMateMidrId(core, freqsInKHz, midrIdsByCore))
+				?.let { KNOWN_CORE_GENERATION_YEARS[it] }
+		}
+		.maxOrNull()
 
 	/**
 	 * Fills frequencies of cores whose cpufreq node was unreadable from a cluster mate with the same
@@ -124,6 +156,13 @@ internal class CpuArchitectureScorer(
 		if (value.startsWith("0x")) value.removePrefix("0x").toIntOrNull(16) else value.toIntOrNull()
 
 	internal data class MidrId(val implementer: Int, val part: Int)
+
+	/**
+	 * @param score raw microarchitecture throughput estimate (never age-adjusted)
+	 * @param flagshipGenerationYear device-ship year of the newest top-frequency core design, or null
+	 * when the top cores are uncatalogued/unreadable; the caller uses it to age EXCELLENT down to HIGH
+	 */
+	internal data class CpuScore(val score: Float, val flagshipGenerationYear: Int?)
 
 	companion object {
 
@@ -215,6 +254,37 @@ internal class CpuArchitectureScorer(
 			samsung(0x002) to 2.2F, // Mongoose M3
 			samsung(0x003) to 2.6F, // Mongoose M4
 			samsung(0x004) to 2.7F, // Mongoose M5
+		)
+
+		/**
+		 * Calendar year the flagship devices carrying this core generation typically shipped (device
+		 * ship year, not the silicon vendor's announce date). Deliberately sparse: only cores that can
+		 * carry a device to EXCELLENT need a year, since the caller only age-caps EXCELLENT devices.
+		 * A new prime design added to [KNOWN_CORE_WEIGHTS] should get an entry here too; until it does,
+		 * an uncatalogued prime yields no year and is treated as current - so a just-launched flagship
+		 * is never aged. That fail-safe direction is the invariant: a MIDR (implementer, part) may be
+		 * listed only if it uniquely identifies one generation.
+		 *
+		 * ARM assigns a fresh part per core design (X2 0xd48 -> X3 0xd4e -> X4 0xd82), as does Qualcomm
+		 * for its Kryo parts, so each maps to exactly one generation. Qualcomm's Oryon is deliberately
+		 * NOT listed: every Oryon generation (Snapdragon X Elite, 8 Elite and successors) reports the
+		 * same part 0x001, told apart only by the MIDR variant field, which [parseMidrIds] does not read.
+		 * Mapping 0x001 to any single year would wrongly demote a future Oryon flagship, so Oryon
+		 * devices fall through to no-year and stay EXCELLENT (aged only via the Media-Performance-Class
+		 * path, when they declare one).
+		 */
+		private val KNOWN_CORE_GENERATION_YEARS: Map<MidrId, Int> = mapOf(
+			arm(0xd48) to 2022, // Cortex-X2   (Snapdragon 8 Gen 1 / Tensor G2)
+			arm(0xd47) to 2022, // Cortex-A710 (same generation)
+			arm(0xd4e) to 2023, // Cortex-X3   (Snapdragon 8 Gen 2 / Tensor G3 - Galaxy S23)
+			arm(0xd4d) to 2023, // Cortex-A715 (same generation)
+			arm(0xd82) to 2024, // Cortex-X4   (Snapdragon 8 Gen 3 / Tensor G4 - Galaxy S24)
+			arm(0xd81) to 2024, // Cortex-A720 (same generation)
+			arm(0xd85) to 2025, // Cortex-X925 (Dimensity 9400)
+			arm(0xd87) to 2025, // Cortex-A725 (same generation)
+			arm(0xd8b) to 2026, // C1-Pro
+			arm(0xd90) to 2026, // C1-Premium
+			arm(0xd8c) to 2026, // C1-Ultra
 		)
 	}
 }
