@@ -67,23 +67,25 @@ internal class CpuArchitectureScorer(
 	 * The flagship generation year of the device, read from its top-frequency cores only (>= 95% of
 	 * its own max, [PRIME_ROLE_MIN_RELATIVE_FREQ]) with no count cap - so an all-big design like
 	 * Dimensity 8300 (four A715 cores tied at the top frequency) is covered, while an older efficiency
-	 * core paired with a newer prime (below 95% of it) is ignored. An uncatalogued (newer-than-table)
-	 * top core yields no year, so the caller never ages a just-launched flagship - failing safe toward
-	 * EXCELLENT rather than wrongly demoting new hardware.
+	 * core paired with a newer prime (below 95% of it) is ignored.
 	 *
-	 * A top core missing from /proc/cpuinfo (offline during the read) is resolved from a same-frequency
-	 * cluster mate, matching the scoring loop; only a solo prime that is both offline and mateless
-	 * yields no year - an accepted rare gap, consistent with this file's tolerance for partial cpuinfo.
+	 * Fails safe: if ANY top core cannot be dated - uncatalogued (newer than the table), or offline in
+	 * /proc/cpuinfo with no same-frequency cluster mate to inherit a design from - the whole device
+	 * yields no year, so a just-launched flagship is never aged by an older sibling. Otherwise the
+	 * newest of the top cores' years is returned.
 	 */
 	private fun flagshipGenerationYear(
 		freqsInKHz: LongArray, deviceMaxFreqInKHz: Long, midrIdsByCore: Map<Int, MidrId>
-	): Int? = freqsInKHz.indices
-		.filter { freqsInKHz[it] >= PRIME_ROLE_MIN_RELATIVE_FREQ * deviceMaxFreqInKHz }
-		.mapNotNull { core ->
-			(midrIdsByCore[core] ?: findClusterMateMidrId(core, freqsInKHz, midrIdsByCore))
-				?.let { KNOWN_CORE_GENERATION_YEARS[it] }
+	): Int? {
+		val topCores = freqsInKHz.indices.filter { freqsInKHz[it] >= PRIME_ROLE_MIN_RELATIVE_FREQ * deviceMaxFreqInKHz }
+		var newestYear: Int? = null
+		for (core in topCores) {
+			val midrId = midrIdsByCore[core] ?: findClusterMateMidrId(core, freqsInKHz, midrIdsByCore)
+			val year = midrId?.let { KNOWN_CORE_GENERATION_YEARS[it] } ?: return null
+			newestYear = maxOf(newestYear ?: year, year)
 		}
-		.maxOrNull()
+		return newestYear
+	}
 
 	/**
 	 * Fills frequencies of cores whose cpufreq node was unreadable from a cluster mate with the same
@@ -257,9 +259,11 @@ internal class CpuArchitectureScorer(
 		)
 
 		/**
-		 * Calendar year the flagship devices carrying this core generation typically shipped (device
-		 * ship year, not the silicon vendor's announce date). Deliberately sparse: only cores that can
-		 * carry a device to EXCELLENT need a year, since the caller only age-caps EXCELLENT devices.
+		 * Ship year of the NEWEST flagship device generation to use this core design as a prime - not the
+		 * design's debut year. A prime is often reused a generation later (Cortex-X4: 8 Gen 3 2024, then
+		 * Tensor G5 / Pixel 10 2025) and MIDR alone cannot tell the devices apart, so the entry takes the
+		 * latest reuse - keeping a reusing flagship EXCELLENT a year longer rather than demoting it early.
+		 * Deliberately sparse: only cores that can carry a device to EXCELLENT need a year.
 		 * A new prime design added to [KNOWN_CORE_WEIGHTS] should get an entry here too; until it does,
 		 * an uncatalogued prime yields no year and is treated as current - so a just-launched flagship
 		 * is never aged. That fail-safe direction is the invariant: a MIDR (implementer, part) may be
@@ -278,8 +282,8 @@ internal class CpuArchitectureScorer(
 			arm(0xd47) to 2022, // Cortex-A710 (same generation)
 			arm(0xd4e) to 2023, // Cortex-X3   (Snapdragon 8 Gen 2 / Tensor G3 - Galaxy S23)
 			arm(0xd4d) to 2023, // Cortex-A715 (same generation)
-			arm(0xd82) to 2024, // Cortex-X4   (Snapdragon 8 Gen 3 / Tensor G4 - Galaxy S24)
-			arm(0xd81) to 2024, // Cortex-A720 (same generation)
+			arm(0xd82) to 2025, // Cortex-X4   (8 Gen 3 2024, reused in Tensor G5 / Pixel 10 2025)
+			arm(0xd81) to 2024, // Cortex-A720 (Snapdragon 8 Gen 3 / Tensor G4)
 			arm(0xd85) to 2025, // Cortex-X925 (Dimensity 9400)
 			arm(0xd87) to 2025, // Cortex-A725 (same generation)
 			arm(0xd8b) to 2026, // C1-Pro

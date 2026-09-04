@@ -20,9 +20,10 @@ import java.util.Calendar
  * The tier comes from a microarchitecture score ([CpuArchitectureScorer]) with three adjustments: an
  * EXCELLENT tier is capped to HIGH once its flagship silicon generation is a few years old
  * ([capOldFlagship]), so "EXCELLENT can handle every feature" keeps describing current flagships and
- * not once-flagship hardware; a Media-Performance-Class certification overrides the score and is aged
- * the same way ([premiumCertifiedTier]); and platform low-end signals ([measureHardwareCap]) cap the
- * result so a fast SoC paired with starved memory never reports a rich-experience tier.
+ * not once-flagship hardware; a Media-Performance-Class certification short-circuits the score while it
+ * is current and defers back to it once aged out ([premiumCertifiedTier]); and platform low-end signals
+ * ([measureHardwareCap]) cap the result so a fast SoC paired with starved memory never reports a
+ * rich-experience tier.
  *
  * The hardware inputs are fixed, so they are measured once, persisted and served from cache on later
  * launches. Because the score now ages with the calendar, the cache is keyed by both
@@ -52,10 +53,11 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 	private fun computeDeviceTier(): PerformanceLevel {
 		val hardwareCap = measureHardwareCap()
 
-		// No MIDR info: the hardware cap is the whole answer either way, and the procfs read may
-		// succeed on a later launch, so nothing is cached.
-		val scoredTier = measureMicroarchitectureTier()
-			?: return hardwareCap.also { logInfo("NO MICROARCHITECTURE INFO, DEVICE TIER (NOT CACHED): $it") }
+		// No MIDR info (x86 emulator, restricted procfs): no score to defer to, so the premium gate
+		// still applies directly; the procfs read may succeed on a later launch, so nothing is cached.
+		val scoredTier = measureMicroarchitectureTier() ?: return (
+			if (isPremiumCertified()) minLevel(hardwareCap, premiumCertifiedTier()) else hardwareCap
+			).also { logInfo("NO MICROARCHITECTURE INFO, DEVICE TIER (NOT CACHED): $it") }
 
 		writeCachedHardwareTiers(scoredTier, hardwareCap)
 		return applyPremiumGate(scoredTier, hardwareCap).also { logInfo("DEVICE TIER: $it") }
@@ -64,30 +66,33 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 	/**
 	 * Applied per read, never persisted: Play Services resolves the Media Performance Class
 	 * asynchronously, so a first-ever launch can read the framework default and miss a real
-	 * certification - caching that would make the miss permanent. A certified device is limited by
-	 * its hardware cap and by the age of the certification ([premiumCertifiedTier]): certification
-	 * vouches for the SoC, not for the memory it is paired with, and an old certification no longer
-	 * implies a device that can handle every feature.
+	 * certification - caching that would make the miss permanent. A current certification short-circuits
+	 * the score to the hardware cap (it vouches for the SoC, not the memory). Once aged out
+	 * ([premiumCertifiedTier]) it no longer implies a current flagship, but a class is an OEM-declared
+	 * floor a current flagship can under-declare, so the tier defers to the score rather than hard-capping.
 	 */
 	private fun applyPremiumGate(scoredTier: PerformanceLevel, hardwareCap: PerformanceLevel): PerformanceLevel =
-		if (isPremiumCertified()) minLevel(hardwareCap, premiumCertifiedTier())
+		if (isPremiumCertified() && premiumCertifiedTier() == PerformanceLevel.EXCELLENT) hardwareCap
 		else minLevel(scoredTier, hardwareCap)
 
 	/**
-	 * Ages the certified path the same way the scored path is aged. A Media Performance Class is a
-	 * certification against a given Android release, so once that release is
-	 * [OLD_FLAGSHIP_MIN_AGE_YEARS]+ years old the device is no longer a current flagship and drops
-	 * from EXCELLENT to HIGH. An unrecognised (newer-than-table) class yields no year and stays
-	 * EXCELLENT - a just-released device must not be aged.
+	 * Whether the certification is still current or has aged out. Keyed by the device-ship year the
+	 * Media Performance Class maps to ([FLAGSHIP_SHIP_YEAR_BY_SDK_INT]) on the same convention as the
+	 * scored path, so both paths age alike. An unrecognised (newer-than-table) class yields no year and
+	 * stays EXCELLENT - a just-released device must not be aged. This only decides whether to keep the
+	 * certification short-circuit; an aged-out class defers to the score (see [applyPremiumGate]).
 	 */
 	private fun premiumCertifiedTier(): PerformanceLevel {
 		val mediaPerformanceClass = DevicePerformanceProvider.get(applicationContext).mediaPerformanceClass
-		val releaseYear = ANDROID_RELEASE_YEAR_BY_SDK_INT[mediaPerformanceClass] ?: return PerformanceLevel.EXCELLENT
-		return if (currentYear() - releaseYear >= OLD_FLAGSHIP_MIN_AGE_YEARS) PerformanceLevel.HIGH
-		else PerformanceLevel.EXCELLENT
+		val shipYear = FLAGSHIP_SHIP_YEAR_BY_SDK_INT[mediaPerformanceClass] ?: return PerformanceLevel.EXCELLENT
+		return if (isOldFlagship(shipYear)) PerformanceLevel.HIGH else PerformanceLevel.EXCELLENT
 	}
 
 	private fun currentYear(): Int = Calendar.getInstance().get(Calendar.YEAR)
+
+	/** A silicon generation or certification is "old flagship" once it is [OLD_FLAGSHIP_MIN_AGE_YEARS]+ years old. */
+	private fun isOldFlagship(generationYear: Int): Boolean =
+		currentYear() - generationYear >= OLD_FLAGSHIP_MIN_AGE_YEARS
 
 	private fun measureMicroarchitectureTier(): PerformanceLevel? {
 		val (score, flagshipGenerationYear) = architectureScorer.computeScore(cpuInfoManager.coreMaxFreqsInKHz)
@@ -111,8 +116,8 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 	 * touched; a null year (uncatalogued or unreadable top core) is treated as current and left as-is.
 	 */
 	private fun capOldFlagship(tier: PerformanceLevel, flagshipGenerationYear: Int?): PerformanceLevel =
-		if (tier == PerformanceLevel.EXCELLENT && flagshipGenerationYear != null &&
-			currentYear() - flagshipGenerationYear >= OLD_FLAGSHIP_MIN_AGE_YEARS) PerformanceLevel.HIGH
+		if (tier == PerformanceLevel.EXCELLENT && flagshipGenerationYear != null && isOldFlagship(flagshipGenerationYear))
+			PerformanceLevel.HIGH
 		else tier
 
 	/** Platform low-end signals cap the tier. Memory-class ranges start at 1 because 0 means "unknown". */
@@ -197,16 +202,16 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 		// silicon generation (scored path) or certification (MPC path) is this many years old.
 		private const val OLD_FLAGSHIP_MIN_AGE_YEARS = 3
 
-		// Android release year per Media Performance Class (the API level it certifies against), used
-		// to age the MPC short-circuit. The scored path derives its generation year from core MIDR ids
-		// instead; this map covers only the certified path, where MIDR is never consulted. Certification
-		// gates at TIRAMISU (see PerformanceManager.MIN_PREMIUM_MEDIA_PERFORMANCE_CLASS), so entries
-		// start there; an unmapped (newer) class is treated as current and stays EXCELLENT.
-		private val ANDROID_RELEASE_YEAR_BY_SDK_INT: Map<Int, Int> = mapOf(
-			Build.VERSION_CODES.TIRAMISU to 2022,          // Android 13
-			Build.VERSION_CODES.UPSIDE_DOWN_CAKE to 2023,  // Android 14
-			Build.VERSION_CODES.VANILLA_ICE_CREAM to 2024, // Android 15
-			Build.VERSION_CODES.BAKLAVA to 2025,           // Android 16
+		// Device-ship year of the flagship generation that first ships with each Media Performance Class,
+		// on the SAME convention as the scored path's KNOWN_CORE_GENERATION_YEARS (MPC 33 / Android 13 ->
+		// Galaxy S23 gen, 2023) - not the Android release year, which runs a year ahead. Covers only the
+		// certified path (MIDR is never consulted here). Gates at TIRAMISU (see
+		// PerformanceManager.MIN_PREMIUM_MEDIA_PERFORMANCE_CLASS); an unmapped (newer) class stays EXCELLENT.
+		private val FLAGSHIP_SHIP_YEAR_BY_SDK_INT: Map<Int, Int> = mapOf(
+			Build.VERSION_CODES.TIRAMISU to 2023,          // Android 13 -> Galaxy S23 generation
+			Build.VERSION_CODES.UPSIDE_DOWN_CAKE to 2024,  // Android 14 -> Galaxy S24 generation
+			Build.VERSION_CODES.VANILLA_ICE_CREAM to 2025, // Android 15 -> 2025 flagships
+			Build.VERSION_CODES.BAKLAVA to 2026,           // Android 16 -> 2026 flagships
 		)
 
 		private const val LOW_TIER_MAX_CORE_COUNT = 2
@@ -234,6 +239,6 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 
 		// Bump when the scoring algorithm, core-weight table, tier thresholds, age-decay logic or
 		// hardware cap change, so tiers cached by older logic are recomputed.
-		private const val CACHE_SCHEMA_VERSION = 1
+		private const val CACHE_SCHEMA_VERSION = 2
 	}
 }
