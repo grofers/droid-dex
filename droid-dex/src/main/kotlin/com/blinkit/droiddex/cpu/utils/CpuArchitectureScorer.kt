@@ -9,7 +9,7 @@ import java.io.File
  * speed, the core design cannot be faked by OEMs.
  *
  * The score is a synthetic throughput estimate: sum over all cores of (relative single-thread
- * weight of the core design) x (max frequency in GHz). A design absent from [KNOWN_CORE_WEIGHTS] is
+ * weight of the core design) x (max frequency in GHz). A design absent from [KNOWN_CORE_DESIGNS] is
  * newer than the table, so it scores as the newest known core of its cluster role - future SoCs
  * tier correctly without a library update.
  *
@@ -48,7 +48,7 @@ internal class CpuArchitectureScorer(
 		var score = 0F
 		for (core in 0 until coreCount) {
 			val midrId = midrIdsByCore[core] ?: findClusterMateMidrId(core, freqsInKHz, midrIdsByCore)
-			val weight = midrId?.let { KNOWN_CORE_WEIGHTS[it] } ?: run {
+			val weight = midrId?.let { KNOWN_CORE_DESIGNS[it]?.weight } ?: run {
 				val roleWeight = roleBasedWeight(freqsInKHz[core], deviceMaxFreqInKHz, topFreqCoreCount)
 				val coreDesign = midrId?.let { "UNKNOWN CORE DESIGN $it" } ?: "NO CORE DESIGN"
 				logger.logDebug("$coreDesign ON CPU$core, ROLE-BASED WEIGHT: $roleWeight")
@@ -81,7 +81,7 @@ internal class CpuArchitectureScorer(
 		var newestYear: Int? = null
 		for (core in topCores) {
 			val midrId = midrIdsByCore[core] ?: findClusterMateMidrId(core, freqsInKHz, midrIdsByCore)
-			val year = midrId?.let { KNOWN_CORE_GENERATION_YEARS[it] } ?: return null
+			val year = midrId?.let { KNOWN_CORE_DESIGNS[it]?.generationYear } ?: return null
 			newestYear = maxOf(newestYear ?: year, year)
 		}
 		return newestYear
@@ -166,6 +166,13 @@ internal class CpuArchitectureScorer(
 	 */
 	internal data class CpuScore(val score: Float, val flagshipGenerationYear: Int?)
 
+	/**
+	 * @param weight scoring weight (relative single-thread capability per GHz)
+	 * @param generationYear device-ship year of the newest flagship generation using this design as a
+	 * prime, or null when the design never dates a device (efficiency/mid role, or Oryon)
+	 */
+	internal data class CoreDesign(val weight: Float, val generationYear: Int?)
+
 	companion object {
 
 		private const val CPU_INFO_PATH = "/proc/cpuinfo"
@@ -197,98 +204,86 @@ internal class CpuArchitectureScorer(
 		private fun samsung(part: Int) = MidrId(SAMSUNG, part)
 
 		/**
-		 * Relative single-thread capability per GHz, coarsely anchored to public Geekbench 6
-		 * single-core results (unitless - only ratios and the tier thresholds matter). Keyed by core
-		 * design, not SoC: ARM ships ~3 mobile ids per year.
-		 */
-		private val KNOWN_CORE_WEIGHTS: Map<MidrId, Float> = mapOf(
-			// ARM efficiency cores
-			arm(0xd03) to 1.0F, // Cortex-A53
-			arm(0xd04) to 1.0F, // Cortex-A35
-			arm(0xd05) to 1.2F, // Cortex-A55
-			arm(0xd46) to 1.4F, // Cortex-A510
-			arm(0xd80) to 1.5F, // Cortex-A520
-			arm(0xd8f) to 1.5F, // Cortex-A320
-			arm(0xd8a) to 1.6F, // C1-Nano
-			// ARM big cores, ARMv8 2016-18
-			arm(0xd07) to 1.6F, // Cortex-A57
-			arm(0xd08) to 1.9F, // Cortex-A72
-			arm(0xd09) to 2.0F, // Cortex-A73
-			arm(0xd0a) to 2.2F, // Cortex-A75
-			// ARM big cores, ARMv8 2019-21
-			arm(0xd0b) to 2.8F, // Cortex-A76
-			arm(0xd0d) to 3.1F, // Cortex-A77
-			arm(0xd41) to 3.4F, // Cortex-A78
-			arm(0xd4b) to 3.4F, // Cortex-A78C
-			arm(0xd44) to 3.9F, // Cortex-X1
-			arm(0xd4c) to 3.9F, // Cortex-X1C
-			// ARM big cores, ARMv9 gen 1-2
-			arm(0xd47) to 3.6F, // Cortex-A710
-			arm(0xd4d) to 3.7F, // Cortex-A715
-			arm(0xd48) to 4.1F, // Cortex-X2
-			arm(0xd4e) to 4.4F, // Cortex-X3
-			// ARM big cores, ARMv9 gen 3+
-			arm(0xd81) to 3.9F, // Cortex-A720
-			arm(0xd87) to 4.1F, // Cortex-A725
-			arm(0xd82) to 4.7F, // Cortex-X4
-			arm(0xd85) to 5.2F, // Cortex-X925
-			arm(0xd8b) to 4.3F, // C1-Pro
-			arm(0xd90) to 5.0F, // C1-Premium
-			arm(0xd8c) to 5.6F, // C1-Ultra
-			// HiSilicon (Kirin) relabels licensed ARM designs under its own implementer id, so the
-			// same part number means a different core than under ARM: 0xd41 is A77 here, A78 there.
-			hisilicon(0xd40) to 2.8F, // Cortex-A76 (Kirin 980/990)
-			hisilicon(0xd41) to 3.1F, // Cortex-A77 (Kirin 9000)
-			hisilicon(0xd01) to 2.2F, // TaiShan v110 (Kunpeng, server)
-			hisilicon(0xd02) to 2.8F, // TaiShan v120 (Kunpeng, server)
-			// Qualcomm custom + semi-custom (rebranded ARM) designs
-			qualcomm(0x001) to 5.0F, // Oryon
-			qualcomm(0x205) to 1.8F, // Kryo 1xx Gold (SD 820/821)
-			qualcomm(0x211) to 1.6F, // Kryo 1xx Silver
-			qualcomm(0x800) to 2.0F, // Kryo 2xx Gold (A73-class)
-			qualcomm(0x801) to 1.0F, // Kryo 2xx Silver (A53-class)
-			qualcomm(0x802) to 2.2F, // Kryo 3xx Gold (A75-class)
-			qualcomm(0x803) to 1.2F, // Kryo 3xx Silver (A55-class)
-			qualcomm(0x804) to 2.8F, // Kryo 4xx Gold (A76-class)
-			qualcomm(0x805) to 1.2F, // Kryo 4xx Silver (A55-class)
-			// Samsung custom big cores (Exynos M-series, discontinued 2020)
-			samsung(0x001) to 1.7F, // Mongoose M1/M2
-			samsung(0x002) to 2.2F, // Mongoose M3
-			samsung(0x003) to 2.6F, // Mongoose M4
-			samsung(0x004) to 2.7F, // Mongoose M5
-		)
-
-		/**
-		 * Ship year of the NEWEST flagship device generation to use this core design as a prime - not the
-		 * design's debut year. A prime is often reused a generation later (Cortex-X4: 8 Gen 3 2024, then
-		 * Tensor G5 / Pixel 10 2025) and MIDR alone cannot tell the devices apart, so the entry takes the
-		 * latest reuse - keeping a reusing flagship EXCELLENT a year longer rather than demoting it early.
-		 * Deliberately sparse: only cores that can carry a device to EXCELLENT need a year.
-		 * A new prime design added to [KNOWN_CORE_WEIGHTS] should get an entry here too; until it does,
-		 * an uncatalogued prime yields no year and is treated as current - so a just-launched flagship
-		 * is never aged. That fail-safe direction is the invariant: a MIDR (implementer, part) may be
-		 * listed only if it uniquely identifies one generation.
+		 * Per core design (keyed by MIDR, not SoC - ARM ships ~3 mobile ids/year): its scoring
+		 * [CoreDesign.weight] and, for prime cores, the [CoreDesign.generationYear] used to age EXCELLENT.
+		 *
+		 * weight = relative single-thread capability per GHz, coarsely anchored to public Geekbench 6
+		 * single-core results (unitless - only ratios and the tier thresholds matter). A design absent
+		 * here is newer than the table and scores as the newest known core of its cluster role (see
+		 * [roleBasedWeight]).
+		 *
+		 * generationYear = ship year of the NEWEST flagship generation to use this design as a prime, or
+		 * null for a design that never dates a device (efficiency/mid roles, and Qualcomm's Oryon - see
+		 * below). NOT the design's debut year: a prime is often reused a generation later (Cortex-X4:
+		 * 8 Gen 3 2024, then Tensor G5 / Pixel 10 2025) and MIDR cannot tell the devices apart, so the
+		 * entry takes the latest reuse - keeping a reusing flagship EXCELLENT a year longer rather than
+		 * demoting it early. The year has no default, so adding a design forces an explicit year-or-null
+		 * choice at the line rather than a silently forgotten one.
 		 *
 		 * ARM assigns a fresh part per core design (X2 0xd48 -> X3 0xd4e -> X4 0xd82), as does Qualcomm
-		 * for its Kryo parts, so each maps to exactly one generation. Qualcomm's Oryon is deliberately
-		 * NOT listed: every Oryon generation (Snapdragon X Elite, 8 Elite and successors) reports the
-		 * same part 0x001, told apart only by the MIDR variant field, which [parseMidrIds] does not read.
-		 * Mapping 0x001 to any single year would wrongly demote a future Oryon flagship, so Oryon
-		 * devices fall through to no-year and stay EXCELLENT (aged only via the Media-Performance-Class
-		 * path, when they declare one).
+		 * for its Kryo parts, so each dates one generation. Qualcomm's Oryon is null on purpose: every
+		 * Oryon generation (Snapdragon X Elite, 8 Elite and successors) reports the same part 0x001, told
+		 * apart only by the MIDR variant field which [parseMidrIds] does not read - dating it to any one
+		 * year would wrongly demote a future Oryon flagship, so the scored path leaves it null and its
+		 * aging is left to the certification path (CpuPerformanceManager.applyPremiumGate). The Oryon null
+		 * and the X4-reuse bump are the same limitation: MIDR cannot distinguish generations; the real fix
+		 * is an SoC-identity signal.
 		 */
-		private val KNOWN_CORE_GENERATION_YEARS: Map<MidrId, Int> = mapOf(
-			arm(0xd48) to 2022, // Cortex-X2   (Snapdragon 8 Gen 1 / Tensor G2)
-			arm(0xd47) to 2022, // Cortex-A710 (same generation)
-			arm(0xd4e) to 2023, // Cortex-X3   (Snapdragon 8 Gen 2 / Tensor G3 - Galaxy S23)
-			arm(0xd4d) to 2023, // Cortex-A715 (same generation)
-			arm(0xd82) to 2025, // Cortex-X4   (8 Gen 3 2024, reused in Tensor G5 / Pixel 10 2025)
-			arm(0xd81) to 2024, // Cortex-A720 (Snapdragon 8 Gen 3 / Tensor G4)
-			arm(0xd85) to 2025, // Cortex-X925 (Dimensity 9400)
-			arm(0xd87) to 2025, // Cortex-A725 (same generation)
-			arm(0xd8b) to 2026, // C1-Pro
-			arm(0xd90) to 2026, // C1-Premium
-			arm(0xd8c) to 2026, // C1-Ultra
+		private val KNOWN_CORE_DESIGNS: Map<MidrId, CoreDesign> = mapOf(
+			// ARM efficiency cores
+			arm(0xd03) to CoreDesign(1.0F, null), // Cortex-A53
+			arm(0xd04) to CoreDesign(1.0F, null), // Cortex-A35
+			arm(0xd05) to CoreDesign(1.2F, null), // Cortex-A55
+			arm(0xd46) to CoreDesign(1.4F, null), // Cortex-A510
+			arm(0xd80) to CoreDesign(1.5F, null), // Cortex-A520
+			arm(0xd8f) to CoreDesign(1.5F, null), // Cortex-A320
+			arm(0xd8a) to CoreDesign(1.6F, null), // C1-Nano
+			// ARM big cores, ARMv8 2016-18
+			arm(0xd07) to CoreDesign(1.6F, null), // Cortex-A57
+			arm(0xd08) to CoreDesign(1.9F, null), // Cortex-A72
+			arm(0xd09) to CoreDesign(2.0F, null), // Cortex-A73
+			arm(0xd0a) to CoreDesign(2.2F, null), // Cortex-A75
+			// ARM big cores, ARMv8 2019-21
+			arm(0xd0b) to CoreDesign(2.8F, null), // Cortex-A76
+			arm(0xd0d) to CoreDesign(3.1F, null), // Cortex-A77
+			arm(0xd41) to CoreDesign(3.4F, null), // Cortex-A78
+			arm(0xd4b) to CoreDesign(3.4F, null), // Cortex-A78C
+			arm(0xd44) to CoreDesign(3.9F, null), // Cortex-X1
+			arm(0xd4c) to CoreDesign(3.9F, null), // Cortex-X1C
+			// ARM big cores, ARMv9 gen 1-2
+			arm(0xd47) to CoreDesign(3.6F, 2022), // Cortex-A710 (8 Gen 1 / Tensor G2 gen)
+			arm(0xd4d) to CoreDesign(3.7F, 2023), // Cortex-A715 (8 Gen 2 / Tensor G3 gen)
+			arm(0xd48) to CoreDesign(4.1F, 2022), // Cortex-X2   (Snapdragon 8 Gen 1 / Tensor G2)
+			arm(0xd4e) to CoreDesign(4.4F, 2023), // Cortex-X3   (Snapdragon 8 Gen 2 / Tensor G3 - Galaxy S23)
+			// ARM big cores, ARMv9 gen 3+
+			arm(0xd81) to CoreDesign(3.9F, 2024), // Cortex-A720 (Snapdragon 8 Gen 3 / Tensor G4)
+			arm(0xd87) to CoreDesign(4.1F, 2025), // Cortex-A725 (Dimensity 9400 gen)
+			arm(0xd82) to CoreDesign(4.7F, 2025), // Cortex-X4   (8 Gen 3 2024, reused in Tensor G5 / Pixel 10 2025)
+			arm(0xd85) to CoreDesign(5.2F, 2025), // Cortex-X925 (Dimensity 9400)
+			arm(0xd8b) to CoreDesign(4.3F, 2026), // C1-Pro
+			arm(0xd90) to CoreDesign(5.0F, 2026), // C1-Premium
+			arm(0xd8c) to CoreDesign(5.6F, 2026), // C1-Ultra
+			// HiSilicon (Kirin) relabels licensed ARM designs under its own implementer id, so the
+			// same part number means a different core than under ARM: 0xd41 is A77 here, A78 there.
+			hisilicon(0xd40) to CoreDesign(2.8F, null), // Cortex-A76 (Kirin 980/990)
+			hisilicon(0xd41) to CoreDesign(3.1F, null), // Cortex-A77 (Kirin 9000)
+			hisilicon(0xd01) to CoreDesign(2.2F, null), // TaiShan v110 (Kunpeng, server)
+			hisilicon(0xd02) to CoreDesign(2.8F, null), // TaiShan v120 (Kunpeng, server)
+			// Qualcomm custom + semi-custom (rebranded ARM) designs
+			qualcomm(0x001) to CoreDesign(5.0F, null), // Oryon (null year: part 0x001 shared by all Oryon gens - see above)
+			qualcomm(0x205) to CoreDesign(1.8F, null), // Kryo 1xx Gold (SD 820/821)
+			qualcomm(0x211) to CoreDesign(1.6F, null), // Kryo 1xx Silver
+			qualcomm(0x800) to CoreDesign(2.0F, null), // Kryo 2xx Gold (A73-class)
+			qualcomm(0x801) to CoreDesign(1.0F, null), // Kryo 2xx Silver (A53-class)
+			qualcomm(0x802) to CoreDesign(2.2F, null), // Kryo 3xx Gold (A75-class)
+			qualcomm(0x803) to CoreDesign(1.2F, null), // Kryo 3xx Silver (A55-class)
+			qualcomm(0x804) to CoreDesign(2.8F, null), // Kryo 4xx Gold (A76-class)
+			qualcomm(0x805) to CoreDesign(1.2F, null), // Kryo 4xx Silver (A55-class)
+			// Samsung custom big cores (Exynos M-series, discontinued 2020)
+			samsung(0x001) to CoreDesign(1.7F, null), // Mongoose M1/M2
+			samsung(0x002) to CoreDesign(2.2F, null), // Mongoose M3
+			samsung(0x003) to CoreDesign(2.6F, null), // Mongoose M4
+			samsung(0x004) to CoreDesign(2.7F, null), // Mongoose M5
 		)
 	}
 }

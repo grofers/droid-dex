@@ -21,9 +21,9 @@ import java.util.Calendar
  * EXCELLENT tier is capped to HIGH once its flagship silicon generation is a few years old
  * ([capOldFlagship]), so "EXCELLENT can handle every feature" keeps describing current flagships and
  * not once-flagship hardware; a Media-Performance-Class certification short-circuits the score while it
- * is current and defers back to it once aged out ([premiumCertifiedTier]); and platform low-end signals
- * ([measureHardwareCap]) cap the result so a fast SoC paired with starved memory never reports a
- * rich-experience tier.
+ * is current and, once aged out, caps a chip the score cannot date (Oryon) while deferring to the score
+ * for one it can ([premiumCertifiedTier]); and platform low-end signals ([measureHardwareCap]) cap the
+ * result so a fast SoC paired with starved memory never reports a rich-experience tier.
  *
  * The hardware inputs are fixed, so they are measured once, persisted and served from cache on later
  * launches. Because the score now ages with the calendar, the cache is keyed by both
@@ -46,21 +46,23 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 	override fun getDelayInSecs() = DELAY_IN_SECS
 
 	override fun measurePerformanceLevel(): PerformanceLevel {
-		val (cachedScoredTier, cachedHardwareCap) = readCachedHardwareTiers() ?: return computeDeviceTier()
-		return applyPremiumGate(cachedScoredTier, cachedHardwareCap).also { logInfo("DEVICE TIER (CACHED): $it") }
+		val (cachedScoredTier, cachedScoredYear, cachedHardwareCap) = readCachedHardwareTiers() ?: return computeDeviceTier()
+		return applyPremiumGate(cachedScoredTier, cachedScoredYear, cachedHardwareCap)
+			.also { logInfo("DEVICE TIER (CACHED): $it") }
 	}
 
 	private fun computeDeviceTier(): PerformanceLevel {
 		val hardwareCap = measureHardwareCap()
 
-		// No MIDR info (x86 emulator, restricted procfs): no score to defer to, so the premium gate
-		// still applies directly; the procfs read may succeed on a later launch, so nothing is cached.
-		val scoredTier = measureMicroarchitectureTier() ?: return (
-			if (isPremiumCertified()) minLevel(hardwareCap, premiumCertifiedTier()) else hardwareCap
-			).also { logInfo("NO MICROARCHITECTURE INFO, DEVICE TIER (NOT CACHED): $it") }
+		// No MIDR info (x86 emulator, restricted procfs): an undatable chip (null year), so the premium
+		// gate ages it via the certification alone. hardwareCap stands in for the absent scoredTier (a
+		// minLevel no-op). The procfs read may succeed later, so nothing is cached.
+		val (scoredTier, scoredYear) = measureMicroarchitectureTier()
+			?: return applyPremiumGate(hardwareCap, null, hardwareCap)
+				.also { logInfo("NO MICROARCHITECTURE INFO, DEVICE TIER (NOT CACHED): $it") }
 
-		writeCachedHardwareTiers(scoredTier, hardwareCap)
-		return applyPremiumGate(scoredTier, hardwareCap).also { logInfo("DEVICE TIER: $it") }
+		writeCachedHardwareTiers(scoredTier, scoredYear, hardwareCap)
+		return applyPremiumGate(scoredTier, scoredYear, hardwareCap).also { logInfo("DEVICE TIER: $it") }
 	}
 
 	/**
@@ -68,19 +70,30 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 	 * asynchronously, so a first-ever launch can read the framework default and miss a real
 	 * certification - caching that would make the miss permanent. A current certification short-circuits
 	 * the score to the hardware cap (it vouches for the SoC, not the memory). Once aged out
-	 * ([premiumCertifiedTier]) it no longer implies a current flagship, but a class is an OEM-declared
-	 * floor a current flagship can under-declare, so the tier defers to the score rather than hard-capping.
+	 * ([premiumCertifiedTier]) it caps the tier, but only for a chip the score could not date (null
+	 * [scoredGenerationYear] - Oryon, uncatalogued, or no-MIDR): a datable chip has already self-aged
+	 * through [capOldFlagship], so it defers to the score, and a current flagship that merely
+	 * under-declares its class is not demoted.
 	 */
-	private fun applyPremiumGate(scoredTier: PerformanceLevel, hardwareCap: PerformanceLevel): PerformanceLevel =
-		if (isPremiumCertified() && premiumCertifiedTier() == PerformanceLevel.EXCELLENT) hardwareCap
-		else minLevel(scoredTier, hardwareCap)
+	private fun applyPremiumGate(
+		scoredTier: PerformanceLevel, scoredGenerationYear: Int?, hardwareCap: PerformanceLevel
+	): PerformanceLevel {
+		if (!isPremiumCertified()) return minLevel(scoredTier, hardwareCap)
+		val certifiedTier = premiumCertifiedTier()
+		if (certifiedTier == PerformanceLevel.EXCELLENT) return hardwareCap
+		// Certification has aged out. A datable chip trusts the score (already self-aged); an undatable
+		// one (null year) has no scored age, so the aged class caps it.
+		return if (scoredGenerationYear != null) minLevel(scoredTier, hardwareCap)
+		else minLevel(minLevel(scoredTier, hardwareCap), certifiedTier)
+	}
 
 	/**
 	 * Whether the certification is still current or has aged out. Keyed by the device-ship year the
 	 * Media Performance Class maps to ([FLAGSHIP_SHIP_YEAR_BY_SDK_INT]) on the same convention as the
 	 * scored path, so both paths age alike. An unrecognised (newer-than-table) class yields no year and
-	 * stays EXCELLENT - a just-released device must not be aged. This only decides whether to keep the
-	 * certification short-circuit; an aged-out class defers to the score (see [applyPremiumGate]).
+	 * stays EXCELLENT - a just-released device must not be aged. This only decides whether the
+	 * certification short-circuit still holds; an aged-out class then caps an undatable chip and defers
+	 * to the score for a datable one (see [applyPremiumGate]).
 	 */
 	private fun premiumCertifiedTier(): PerformanceLevel {
 		val mediaPerformanceClass = DevicePerformanceProvider.get(applicationContext).mediaPerformanceClass
@@ -89,12 +102,13 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 	}
 
 	private fun currentYear(): Int = Calendar.getInstance().get(Calendar.YEAR)
+		.takeIf { it in LIBRARY_BUILD_YEAR..LIBRARY_BUILD_YEAR + MAX_LIBRARY_AGE_YEARS } ?: LIBRARY_BUILD_YEAR
 
 	/** A silicon generation or certification is "old flagship" once it is [OLD_FLAGSHIP_MIN_AGE_YEARS]+ years old. */
 	private fun isOldFlagship(generationYear: Int): Boolean =
 		currentYear() - generationYear >= OLD_FLAGSHIP_MIN_AGE_YEARS
 
-	private fun measureMicroarchitectureTier(): PerformanceLevel? {
+	private fun measureMicroarchitectureTier(): Pair<PerformanceLevel, Int?>? {
 		val (score, flagshipGenerationYear) = architectureScorer.computeScore(cpuInfoManager.coreMaxFreqsInKHz)
 			?: return null
 		val scoredTier = when {
@@ -103,8 +117,8 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 			score < HIGH_TIER_MAX_SCORE -> PerformanceLevel.HIGH
 			else -> PerformanceLevel.EXCELLENT
 		}
-		return capOldFlagship(scoredTier, flagshipGenerationYear).also {
-			logInfo("MICROARCHITECTURE SCORE: $score (flagship generation $flagshipGenerationYear) -> $it")
+		return (capOldFlagship(scoredTier, flagshipGenerationYear) to flagshipGenerationYear).also {
+			logInfo("MICROARCHITECTURE SCORE: $score (flagship generation $flagshipGenerationYear) -> ${it.first}")
 		}
 	}
 
@@ -141,16 +155,20 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 	}
 
 	/**
-	 * Both halves must be present to be usable, so a partial write is treated as no cache at all. The
-	 * year is part of the validity check because the scored tier is age-decayed: a tier cached last
-	 * year may need to drop this year, so a stale-year cache is ignored and recomputed.
+	 * Both tier levels must be present to be usable, so a partial write is treated as no cache at all;
+	 * [KEY_SCORED_GENERATION_YEAR] is exempt - 0/absent legitimately means an undatable chip, read as
+	 * null rather than guarded on. The calendar year is part of the validity check because the scored
+	 * tier is age-decayed: a tier cached last year may need to drop this year, so a stale-year cache is
+	 * ignored and recomputed.
 	 */
-	private fun readCachedHardwareTiers(): Pair<PerformanceLevel, PerformanceLevel>? = try {
+	private fun readCachedHardwareTiers(): Triple<PerformanceLevel, Int?, PerformanceLevel>? = try {
 		if (cachePrefs.getInt(KEY_CACHE_SCHEMA_VERSION, 0) == CACHE_SCHEMA_VERSION &&
 			cachePrefs.getInt(KEY_CACHE_YEAR, 0) == currentYear()) {
 			val scoredTier = readCachedLevel(KEY_SCORED_TIER_LEVEL)
 			val hardwareCap = readCachedLevel(KEY_HARDWARE_CAP_LEVEL)
-			if (scoredTier != null && hardwareCap != null) scoredTier to hardwareCap else null
+			val scoredYear = cachePrefs.getInt(KEY_SCORED_GENERATION_YEAR, NO_GENERATION_YEAR)
+				.takeIf { it != NO_GENERATION_YEAR }
+			if (scoredTier != null && hardwareCap != null) Triple(scoredTier, scoredYear, hardwareCap) else null
 		} else null
 	} catch (e: Exception) {
 		logError(e)
@@ -161,12 +179,13 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 		PerformanceLevel.getPerformanceLevel(cachePrefs.getInt(key, PerformanceLevel.UNKNOWN.level))
 			.takeIf { it != PerformanceLevel.UNKNOWN }
 
-	private fun writeCachedHardwareTiers(scoredTier: PerformanceLevel, hardwareCap: PerformanceLevel) {
+	private fun writeCachedHardwareTiers(scoredTier: PerformanceLevel, scoredYear: Int?, hardwareCap: PerformanceLevel) {
 		try {
 			cachePrefs.edit()
 				.putInt(KEY_CACHE_SCHEMA_VERSION, CACHE_SCHEMA_VERSION)
 				.putInt(KEY_CACHE_YEAR, currentYear())
 				.putInt(KEY_SCORED_TIER_LEVEL, scoredTier.level)
+				.putInt(KEY_SCORED_GENERATION_YEAR, scoredYear ?: NO_GENERATION_YEAR)
 				.putInt(KEY_HARDWARE_CAP_LEVEL, hardwareCap.level)
 				.apply()
 		} catch (e: Exception) {
@@ -202,8 +221,17 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 		// silicon generation (scored path) or certification (MPC path) is this many years old.
 		private const val OLD_FLAGSHIP_MIN_AGE_YEARS = 3
 
+		// The device clock is untrusted (user-settable) but drives aging and the year-keyed cache, so
+		// currentYear() clamps it to a plausible window: below the build year is impossible, and a
+		// library more than MAX_LIBRARY_AGE_YEARS stale stops dating new cores anyway. An out-of-window
+		// read falls to LIBRARY_BUILD_YEAR - the least-aging plausible value - so a bad clock never
+		// wrongly demotes. Bump LIBRARY_BUILD_YEAR each release (a stale value only under-ages, which is
+		// the fail-safe direction).
+		private const val LIBRARY_BUILD_YEAR = 2026
+		private const val MAX_LIBRARY_AGE_YEARS = 3
+
 		// Device-ship year of the flagship generation that first ships with each Media Performance Class,
-		// on the SAME convention as the scored path's KNOWN_CORE_GENERATION_YEARS (MPC 33 / Android 13 ->
+		// on the SAME convention as the scored path's KNOWN_CORE_DESIGNS years (MPC 33 / Android 13 ->
 		// Galaxy S23 gen, 2023) - not the Android release year, which runs a year ahead. Covers only the
 		// certified path (MIDR is never consulted here). Gates at TIRAMISU (see
 		// PerformanceManager.MIN_PREMIUM_MEDIA_PERFORMANCE_CLASS); an unmapped (newer) class stays EXCELLENT.
@@ -233,12 +261,18 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 		// tier is age-decayed (see readCachedHardwareTiers).
 		private const val KEY_CACHE_YEAR = "cache_year"
 
-		// Only the two hardware-derived inputs are cached; the premium gate is re-applied per read.
+		// The hardware-derived inputs are cached; the premium gate is re-applied per read.
 		private const val KEY_SCORED_TIER_LEVEL = "scored_tier_level"
 		private const val KEY_HARDWARE_CAP_LEVEL = "hardware_cap_level"
 
+		// The scored flagship generation year (hardware-stable; distinct from KEY_CACHE_YEAR, the
+		// calendar year the cache was written). NO_GENERATION_YEAR (0, never a real year) means an
+		// undatable chip (Oryon/uncatalogued), which the premium gate reads as "age via certification".
+		private const val KEY_SCORED_GENERATION_YEAR = "scored_generation_year"
+		private const val NO_GENERATION_YEAR = 0
+
 		// Bump when the scoring algorithm, core-weight table, tier thresholds, age-decay logic or
 		// hardware cap change, so tiers cached by older logic are recomputed.
-		private const val CACHE_SCHEMA_VERSION = 2
+		private const val CACHE_SCHEMA_VERSION = 3
 	}
 }
