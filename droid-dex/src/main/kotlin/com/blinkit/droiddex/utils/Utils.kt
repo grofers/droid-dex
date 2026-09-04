@@ -68,6 +68,12 @@ private val isProcessResumed = MutableStateFlow(false)
  * ProcessLifecycleOwner/Lifecycle class-init it would pull in there is exactly what the startup ANR
  * stacks are parked in. addObserver replays the lifecycle up to the current state, so registering a
  * message later still seeds the flow correctly.
+ *
+ * The post lands on the main thread, so during a stalled startup (the stall this fix targets) the
+ * observer registers only after onCreate drains. Until then isProcessResumed stays false and every
+ * poller parks after its seed measurement, so the first foreground re-measure can land well after
+ * delayInSecs rather than one interval in. Self-healing, not a defect: the parked loops unpark on
+ * the next RESUMED.
  */
 private val registerForegroundTrackerOnce: Unit by lazy {
 	Handler(Looper.getMainLooper()).post {
@@ -84,6 +90,11 @@ private val registerForegroundTrackerOnce: Unit by lazy {
 	Unit
 }
 
+/** Forces [registerForegroundTrackerOnce]; a bare property read at the call site reads as dead code. */
+private fun ensureForegroundTrackerRegistered() {
+	registerForegroundTrackerOnce
+}
+
 /**
  * Runs [block] once right away (whatever the process state, so a background start still seeds a
  * level), then keeps re-running it every [delayInSecs] while the process is RESUMED. In the
@@ -96,7 +107,7 @@ private val registerForegroundTrackerOnce: Unit by lazy {
  * coroutine machinery on the main thread during startup - both showed up as startup ANRs.
  */
 internal fun runAsyncPeriodically(block: () -> Unit, delayInSecs: Float) {
-	registerForegroundTrackerOnce
+	ensureForegroundTrackerRegistered()
 	pollScope.launch {
 		block()
 		while (true) {
