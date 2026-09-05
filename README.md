@@ -167,9 +167,3 @@ implementation("com.blinkit.kits:droid-dex:<<your_version>>")
 ```
 
 </details>
-
-## Releasing
-
-Maintainer checklist for each release:
-
-- **Bump `LIBRARY_BUILD_YEAR`** in `CpuPerformanceManager` to the release year. It floors the CPU old-flagship aging clock: a stale value never misclassifies, but once the library is more than `MAX_LIBRARY_AGE_YEARS` old it silently stops aging new flagships out of `EXCELLENT`.

@@ -2,6 +2,7 @@ package com.blinkit.droiddex.cpu
 
 import android.content.Context
 import android.os.Build
+import com.blinkit.droiddex.BuildConfig
 import com.blinkit.droiddex.constants.PerformanceClass
 import com.blinkit.droiddex.constants.PerformanceLevel
 import com.blinkit.droiddex.cpu.utils.CpuArchitectureScorer
@@ -225,9 +226,9 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 		// currentYear() clamps it to a plausible window: below the build year is impossible, and a
 		// library more than MAX_LIBRARY_AGE_YEARS stale stops dating new cores anyway. An out-of-window
 		// read falls to LIBRARY_BUILD_YEAR - the least-aging plausible value - so a bad clock never
-		// wrongly demotes. Bump LIBRARY_BUILD_YEAR each release (a stale value only under-ages, which is
-		// the fail-safe direction).
-		private const val LIBRARY_BUILD_YEAR = 2026
+		// wrongly demotes. LIBRARY_BUILD_YEAR is stamped at build time (BuildConfig), so it needs no
+		// manual bump; even a stale value only under-ages, which is the fail-safe direction.
+		private val LIBRARY_BUILD_YEAR = BuildConfig.LIBRARY_BUILD_YEAR
 		private const val MAX_LIBRARY_AGE_YEARS = 3
 
 		// Device-ship year of the flagship generation that first ships with each Media Performance Class,
