@@ -213,8 +213,8 @@ internal class CpuArchitectureScorer(
 		 * [roleBasedWeight]).
 		 *
 		 * generationYear = ship year of the NEWEST flagship generation to use this design as a prime, or
-		 * null for a design that never dates a device (efficiency/mid roles, and Qualcomm's Oryon - see
-		 * below). NOT the design's debut year: a prime is often reused a generation later (Cortex-X4:
+		 * null for a design that never serves as a device's top-frequency core, and for Qualcomm's Oryon
+		 * (see below). NOT the design's debut year: a prime is often reused a generation later (Cortex-X4:
 		 * 8 Gen 3 2024, then Tensor G5 / Pixel 10 2025) and MIDR cannot tell the devices apart, so the
 		 * entry takes the latest reuse - keeping a reusing flagship EXCELLENT a year longer rather than
 		 * demoting it early. The year has no default, so adding a design forces an explicit year-or-null
