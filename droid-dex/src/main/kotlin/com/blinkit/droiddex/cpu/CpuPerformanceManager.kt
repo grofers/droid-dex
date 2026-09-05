@@ -272,8 +272,9 @@ internal class CpuPerformanceManager(applicationContext: Context): PerformanceMa
 		private const val KEY_SCORED_GENERATION_YEAR = "scored_generation_year"
 		private const val NO_GENERATION_YEAR = 0
 
-		// Bump when the scoring algorithm, core-weight table, tier thresholds, age-decay logic or
-		// hardware cap change, so tiers cached by older logic are recomputed.
-		private const val CACHE_SCHEMA_VERSION = 3
+		// Bump (once per release) when the scoring algorithm, core-weight table, tier thresholds,
+		// age-decay logic or hardware cap change, so tiers cached by older shipped logic are recomputed.
+		// Last shipped value: 1 (v4.0.0-beta01); this release changes the schema once, so 2.
+		private const val CACHE_SCHEMA_VERSION = 2
 	}
 }
