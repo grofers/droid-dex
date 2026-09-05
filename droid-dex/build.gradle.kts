@@ -1,5 +1,6 @@
 import com.vanniktech.maven.publish.AndroidMultiVariantLibrary
 import java.net.URI
+import java.time.Year
 
 plugins {
 	alias(libs.plugins.android.library)
@@ -43,6 +44,8 @@ android {
 		targetSdk = libs.versions.sdk.target.get().toInt()
 
 		consumerProguardFiles("consumer-rules.pro")
+
+		buildConfigField("int", "LIBRARY_BUILD_YEAR", "${Year.now().value}")
 	}
 
 	buildFeatures { buildConfig = true }
