@@ -25,8 +25,8 @@ android {
 	buildTypes { release { isMinifyEnabled = false } }
 
 	compileOptions {
-		sourceCompatibility = JavaVersion.toVersion(libs.versions.jvm.target.get())
-		targetCompatibility = JavaVersion.toVersion(libs.versions.jvm.target.get())
+		sourceCompatibility = JavaVersion.toVersion(libs.versions.java.get())
+		targetCompatibility = JavaVersion.toVersion(libs.versions.java.get())
 	}
 }
 
@@ -44,5 +44,5 @@ dependencies {
 
 kotlin {
 	jvmToolchain(libs.versions.java.get().toInt())
-	compilerOptions { jvmTarget.set(JvmTarget.fromTarget(libs.versions.jvm.target.get())) }
+	compilerOptions { jvmTarget.set(JvmTarget.fromTarget(libs.versions.java.get())) }
 }

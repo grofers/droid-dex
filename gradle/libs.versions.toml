@@ -1,6 +1,5 @@
 [versions]
 java = "25"
-jvm-target = "21"
 
 sdk-min = "24"
 sdk-compile = "37"
