@@ -33,7 +33,7 @@ public annotation class PerformanceClass {
 
 		internal fun values(): List<Int> = listOf(CPU, MEMORY, STORAGE, NETWORK, BATTERY, THERMAL)
 
-		public fun @PerformanceClass Int.name() = when (this) {
+		public fun @PerformanceClass Int.name(): String = when (this) {
 			CPU -> "CPU"
 			MEMORY -> "MEMORY"
 			STORAGE -> "STORAGE"

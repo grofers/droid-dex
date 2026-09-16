@@ -1,6 +1,7 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
 	alias(libs.plugins.android.application)
-	alias(libs.plugins.jetbrains.kotlin.android)
+
 }
 
 
@@ -24,10 +25,9 @@ android {
 	buildTypes { release { isMinifyEnabled = false } }
 
 	compileOptions {
-		sourceCompatibility = JavaVersion.toVersion(libs.versions.java.get())
-		targetCompatibility = JavaVersion.toVersion(libs.versions.java.get())
+		sourceCompatibility = JavaVersion.toVersion(libs.versions.jvm.target.get())
+		targetCompatibility = JavaVersion.toVersion(libs.versions.jvm.target.get())
 	}
-	kotlinOptions { jvmTarget = libs.versions.java.get() }
 }
 
 
@@ -39,4 +39,10 @@ dependencies {
 	implementation(libs.bundles.core)
 
 	implementation(libs.bundles.ui)
+}
+
+
+kotlin {
+	jvmToolchain(libs.versions.java.get().toInt())
+	compilerOptions { jvmTarget.set(JvmTarget.fromTarget(libs.versions.jvm.target.get())) }
 }

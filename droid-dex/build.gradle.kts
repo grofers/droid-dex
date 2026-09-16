@@ -1,10 +1,10 @@
 import com.vanniktech.maven.publish.AndroidMultiVariantLibrary
 import java.net.URI
 import java.time.Year
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
 	alias(libs.plugins.android.library)
-	alias(libs.plugins.jetbrains.kotlin.android)
 
 	alias(libs.plugins.maven.publish)
 }
@@ -31,6 +31,8 @@ mavenPublishing {
 
 kotlin {
 	explicitApi()
+	jvmToolchain(libs.versions.java.get().toInt())
+	compilerOptions { jvmTarget.set(JvmTarget.fromTarget(libs.versions.jvm.target.get())) }
 }
 
 
@@ -41,7 +43,6 @@ android {
 
 	defaultConfig {
 		minSdk = libs.versions.sdk.min.get().toInt()
-		targetSdk = libs.versions.sdk.target.get().toInt()
 
 		consumerProguardFiles("consumer-rules.pro")
 
@@ -53,10 +54,9 @@ android {
 	buildTypes { release { isMinifyEnabled = false } }
 
 	compileOptions {
-		sourceCompatibility = JavaVersion.toVersion(libs.versions.java.get())
-		targetCompatibility = JavaVersion.toVersion(libs.versions.java.get())
+		sourceCompatibility = JavaVersion.toVersion(libs.versions.jvm.target.get())
+		targetCompatibility = JavaVersion.toVersion(libs.versions.jvm.target.get())
 	}
-	kotlinOptions { jvmTarget = libs.versions.java.get() }
 }
 
 
