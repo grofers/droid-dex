@@ -9,4 +9,4 @@ plugins {
 
 tasks.create<Delete>("clean") { delete(rootProject.layout.buildDirectory) }
 
-tasks.wrapper { distributionType = Wrapper.DistributionType.ALL }
+tasks.wrapper { distributionType = Wrapper.DistributionType.BIN }

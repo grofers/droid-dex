@@ -1,8 +1,7 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
 	alias(libs.plugins.android.application)
-	alias(libs.plugins.jetbrains.kotlin.android)
 }
-
 
 android {
 	namespace = "com.blinkit.droiddexexample"
@@ -15,7 +14,6 @@ android {
 		applicationId = "com.blinkit.droiddexexample"
 
 		minSdk = libs.versions.sdk.min.get().toInt()
-		targetSdk = libs.versions.sdk.target.get().toInt()
 
 		versionCode = 1
 		versionName = "1.0"
@@ -27,9 +25,12 @@ android {
 		sourceCompatibility = JavaVersion.toVersion(libs.versions.java.get())
 		targetCompatibility = JavaVersion.toVersion(libs.versions.java.get())
 	}
-	kotlinOptions { jvmTarget = libs.versions.java.get() }
 }
 
+kotlin {
+	jvmToolchain(libs.versions.java.get().toInt())
+	compilerOptions { jvmTarget.set(JvmTarget.fromTarget(libs.versions.java.get())) }
+}
 
 dependencies {
 	implementation(project(":droid-dex"))

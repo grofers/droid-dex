@@ -1,14 +1,13 @@
 import com.vanniktech.maven.publish.AndroidMultiVariantLibrary
 import java.net.URI
 import java.time.Year
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
 	alias(libs.plugins.android.library)
-	alias(libs.plugins.jetbrains.kotlin.android)
 
 	alias(libs.plugins.maven.publish)
 }
-
 
 publishing {
 	repositories {
@@ -23,16 +22,15 @@ publishing {
 	}
 }
 
-
 mavenPublishing {
 	configure(AndroidMultiVariantLibrary(sourcesJar = true, publishJavadocJar = true))
 }
 
-
 kotlin {
 	explicitApi()
+	jvmToolchain(libs.versions.java.get().toInt())
+	compilerOptions { jvmTarget.set(JvmTarget.fromTarget(libs.versions.java.get())) }
 }
-
 
 android {
 	namespace = "com.blinkit.droiddex"
@@ -41,7 +39,6 @@ android {
 
 	defaultConfig {
 		minSdk = libs.versions.sdk.min.get().toInt()
-		targetSdk = libs.versions.sdk.target.get().toInt()
 
 		consumerProguardFiles("consumer-rules.pro")
 
@@ -56,7 +53,6 @@ android {
 		sourceCompatibility = JavaVersion.toVersion(libs.versions.java.get())
 		targetCompatibility = JavaVersion.toVersion(libs.versions.java.get())
 	}
-	kotlinOptions { jvmTarget = libs.versions.java.get() }
 }
 
 
